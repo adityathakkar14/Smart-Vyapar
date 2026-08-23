@@ -1,60 +1,42 @@
 /**
- * Smart Vyapar — AI Settings Panel Controller
+ * Smart Vyapar — AI Settings Modal Controller (Bootstrap 5)
  * Manages Gemini & Groq API key entry, storage, and the AI status badge.
  */
 document.addEventListener('DOMContentLoaded', () => {
 
-  const overlay       = document.getElementById('ai-settings-overlay');
-  const btnOpen       = document.getElementById('btn-ai-settings');
-  const btnClose      = document.getElementById('btn-close-ai-settings');
+  const modalEl       = document.getElementById('aiSettingsModal');
   const btnSave       = document.getElementById('btn-save-ai-keys');
   const geminiInput   = document.getElementById('gemini-key-input');
   const groqInput     = document.getElementById('groq-key-input');
   const statusDiv     = document.getElementById('ai-keys-status');
   const badge         = document.getElementById('ai-status-badge');
 
-  // Populate saved keys on open
+  // Populate saved keys whenever modal is opened
   function loadKeys() {
-    geminiInput.value = SmartVyaparAI.getGeminiKey();
-    groqInput.value   = SmartVyaparAI.getGroqKey();
+    if (geminiInput) geminiInput.value = SmartVyaparAI.getGeminiKey();
+    if (groqInput) groqInput.value = SmartVyaparAI.getGroqKey();
     updateStatus();
   }
 
-  // Show / hide panel
-  btnOpen?.addEventListener('click', () => {
-    loadKeys();
-    overlay.classList.add('active');
-  });
-
-  function closePanel() {
-    overlay.classList.remove('active');
+  if (modalEl) {
+    modalEl.addEventListener('show.bs.modal', loadKeys);
   }
-  btnClose?.addEventListener('click', closePanel);
-  overlay?.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
 
   // Show / hide password toggle
   document.getElementById('toggle-gemini-key')?.addEventListener('click', () => {
-    geminiInput.type = geminiInput.type === 'password' ? 'text' : 'password';
+    if (geminiInput) geminiInput.type = geminiInput.type === 'password' ? 'text' : 'password';
   });
   document.getElementById('toggle-groq-key')?.addEventListener('click', () => {
-    groqInput.type = groqInput.type === 'password' ? 'text' : 'password';
+    if (groqInput) groqInput.type = groqInput.type === 'password' ? 'text' : 'password';
   });
 
   // Save keys
   btnSave?.addEventListener('click', () => {
-    const gk = geminiInput.value.trim();
-    const rk = groqInput.value.trim();
+    const gk = geminiInput ? geminiInput.value.trim() : '';
+    const rk = groqInput ? groqInput.value.trim() : '';
 
     if (!gk && !rk) {
-      showStatusMsg('⚠️ Please enter at least one API key.', 'warning');
-      return;
-    }
-    if (gk && !gk.startsWith('AIza')) {
-      showStatusMsg('❌ Gemini key should start with "AIza". Please check and re-paste.', 'danger');
-      return;
-    }
-    if (rk && !rk.startsWith('gsk_')) {
-      showStatusMsg('❌ Groq key should start with "gsk_". Please check and re-paste.', 'danger');
+      showStatusMsg('⚠️ Please paste at least your Gemini API key.', 'warning');
       return;
     }
 
@@ -63,7 +45,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateBadge();
     showStatusMsg('✅ Keys saved! AI voice parsing is now active.', 'success');
-    setTimeout(closePanel, 1500);
+
+    // Automatically close modal after 1.2s
+    setTimeout(() => {
+      if (modalEl && window.bootstrap) {
+        const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modalInstance.hide();
+      }
+    }, 1200);
   });
 
   // Update badge in header
@@ -71,16 +60,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!badge) return;
     const hasGemini = SmartVyaparAI.isGeminiConfigured();
     const hasGroq   = SmartVyaparAI.isGroqConfigured();
-    badge.className = 'ai-badge';
+
     if (hasGemini && hasGroq) {
-      badge.classList.add('ai-badge-full');
-      badge.title = '🟢 Full AI — Groq Whisper + Gemini NLP active';
+      badge.className = 'badge rounded-pill bg-success';
+      badge.innerHTML = '<i class="bi bi-stars"></i> AI: Dual Active';
+      badge.title = '🟢 Dual AI Active (Groq Whisper + Gemini NLP)';
     } else if (hasGemini) {
-      badge.classList.add('ai-badge-partial');
-      badge.title = '🟡 Gemini NLP active. Add Groq key for better Gujarati ASR.';
+      badge.className = 'badge rounded-pill bg-primary';
+      badge.innerHTML = '<i class="bi bi-stars"></i> AI: Gemini Active';
+      badge.title = '🟡 Gemini NLP Active';
     } else {
-      badge.classList.add('ai-badge-off');
-      badge.title = '🔴 No AI keys — using offline regex parser. Tap gear ⚙️ to add keys.';
+      badge.className = 'badge rounded-pill bg-danger';
+      badge.innerHTML = '<i class="bi bi-stars"></i> AI: Offline';
+      badge.title = '🔴 Offline mode. Tap to configure free AI keys.';
     }
   }
 
@@ -88,13 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasGemini = SmartVyaparAI.isGeminiConfigured();
     const hasGroq   = SmartVyaparAI.isGroqConfigured();
     if (hasGemini && hasGroq) {
-      showStatusMsg('🟢 Both APIs active — Maximum accuracy mode', 'success');
+      showStatusMsg('🟢 Both APIs active — Maximum 200% accuracy mode', 'success');
     } else if (hasGemini) {
-      showStatusMsg('🟡 Gemini active, Groq not configured', 'warning');
+      showStatusMsg('🟡 Gemini AI active', 'info');
     } else if (hasGroq) {
-      showStatusMsg('🟡 Groq active, Gemini not configured', 'warning');
+      showStatusMsg('🟡 Groq Whisper active', 'info');
     } else {
-      showStatusMsg('🔴 No AI keys saved. App works in offline mode.', 'secondary');
+      showStatusMsg('🔴 No keys saved. Operating in offline regex mode.', 'secondary');
     }
   }
 
@@ -104,5 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initial badge update on page load
+  loadKeys();
   updateBadge();
 });

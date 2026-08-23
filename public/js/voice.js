@@ -149,19 +149,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let finalTranscript = webSpeechTranscript;
 
-    // LAYER 2: Groq Whisper (better Indic accuracy) if configured
-    if (SmartVyaparAI.isGroqConfigured() && audioChunks.length > 0) {
-      setStatus('🔊 Transcribing with Groq Whisper...');
+    // LAYER 2: Groq Whisper (used when Web Speech is weak or if configured)
+    if (SmartVyaparAI.isGroqConfigured() && audioChunks.length > 0 && (!webSpeechTranscript || webSpeechTranscript.length < 4)) {
+      setStatus('🔊 Transcribing audio with Groq Whisper...');
       const audioBlob = new Blob(audioChunks, {
         type: mediaRecorder?.mimeType || 'audio/webm'
       });
       const groqTranscript = await SmartVyaparAI.transcribeAudio(audioBlob, langSelect.value);
-      if (groqTranscript) {
+      if (groqTranscript && groqTranscript.length >= 3) {
         finalTranscript = groqTranscript;
         console.log('[Voice] Using Groq transcript:', groqTranscript);
-        rawTranscriptEl.textContent = groqTranscript; // Update displayed text
-      } else {
-        console.log('[Voice] Groq failed, using Web Speech transcript:', webSpeechTranscript);
+        rawTranscriptEl.textContent = groqTranscript;
       }
     }
 

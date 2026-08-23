@@ -14,7 +14,12 @@ if ('serviceWorker' in navigator) {
         console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
       })
       .catch((error) => {
-        console.error('[PWA] ServiceWorker registration failed:', error);
+        // Self-signed certificate or local dev environments without valid SSL
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          console.warn('[PWA] ServiceWorker dev notice: SSL certificate on localhost requires approval or http://.', error.message);
+        } else {
+          console.error('[PWA] ServiceWorker registration failed:', error);
+        }
       });
   });
 }
