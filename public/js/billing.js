@@ -164,7 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
          console.warn("generateInvoicePDF is not defined. Ensure pdf.js is loaded.");
       }
 
-      // 2. Save to DB (Phase 5)
+      // 2. Save to DB with Offline LocalStorage Fallback (Phase 5)
+      let invoiceSaved = false;
       try {
         const response = await fetch('../server/api/invoices.php', {
           method: 'POST',
@@ -174,16 +175,22 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(invoiceData)
         });
         
-        const result = await response.json();
-        if (result.status === 'success') {
-          console.log("Invoice saved with ID:", result.invoice_id);
-          window.showToast?.('Invoice generated and saved successfully!');
-        } else {
-          throw new Error(result.message || 'Failed to save invoice');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.status === 'success') {
+            console.log("Invoice saved to server DB with ID:", result.invoice_id);
+            window.showToast?.('Invoice generated and saved to database!');
+            invoiceSaved = true;
+          }
         }
       } catch (dbError) {
-        console.error("DB Save Error:", dbError);
-        window.showToast?.('PDF generated, but failed to save to database.', true);
+        console.warn("Server DB not available, falling back to local storage:", dbError);
+      }
+
+      // Always sync/fallback to LocalStorage for offline PWA & static hosts (Vercel)
+      saveInvoiceLocally(invoiceData);
+      if (!invoiceSaved) {
+        window.showToast?.('Invoice generated and saved to offline storage!');
       }
 
       // 3. WhatsApp Delivery (Phase 6)
@@ -204,4 +211,27 @@ document.addEventListener('DOMContentLoaded', () => {
       btnGenerateBill.disabled = false;
     }
   });
+
+  // Local Storage fallback helper for offline/static deployment
+  function saveInvoiceLocally(invoiceData) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('smart_vyapar_invoices') || '[]');
+      const newInvoice = {
+        invoice_id: existing.length > 0 ? (Number(existing[0].invoice_id) + 1) : 1001,
+        customer_name: invoiceData.customerName || 'Cash Customer',
+        customer_phone: invoiceData.customerPhone || '',
+        total_amount: invoiceData.totalAmount,
+        date_created: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        items: invoiceData.items
+      };
+      existing.unshift(newInvoice);
+      localStorage.setItem('smart_vyapar_invoices', JSON.stringify(existing));
+      console.log("[PWA LocalStore] Invoice saved locally:", newInvoice);
+      return newInvoice.invoice_id;
+    } catch (e) {
+      console.error("[PWA LocalStore] Failed to save locally:", e);
+      return Date.now();
+    }
+  }
 });
+
