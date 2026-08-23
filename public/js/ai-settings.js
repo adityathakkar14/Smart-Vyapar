@@ -35,24 +35,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const gk = geminiInput ? geminiInput.value.trim() : '';
     const rk = groqInput ? groqInput.value.trim() : '';
 
-    if (!gk && !rk) {
-      showStatusMsg('⚠️ Please paste at least your Gemini API key.', 'warning');
-      return;
-    }
-
-    if (gk) SmartVyaparAI.saveGeminiKey(gk);
+    // If empty, save the default active key
+    const activeKey = gk || 'AIzaSyCwgfkmhIaQmMcWueCqVHfImoXR4XgeA1I';
+    SmartVyaparAI.saveGeminiKey(activeKey);
     if (rk) SmartVyaparAI.saveGroqKey(rk);
 
     updateBadge();
-    showStatusMsg('✅ Keys saved! AI voice parsing is now active.', 'success');
+    showStatusMsg('✅ Active! Google Gemini AI is enabled.', 'success');
 
-    // Automatically close modal after 1.2s
+    // Blur focus and close modal after 1s
     setTimeout(() => {
+      document.activeElement?.blur();
       if (modalEl && window.bootstrap) {
         const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modalInstance.hide();
       }
-    }, 1200);
+    }, 1000);
   });
 
   // Update badge in header
@@ -66,9 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
       badge.innerHTML = '<i class="bi bi-stars"></i> AI: Dual Active';
       badge.title = '🟢 Dual AI Active (Groq Whisper + Gemini NLP)';
     } else if (hasGemini) {
-      badge.className = 'badge rounded-pill bg-primary';
+      badge.className = 'badge rounded-pill bg-success';
       badge.innerHTML = '<i class="bi bi-stars"></i> AI: Gemini Active';
-      badge.title = '🟡 Gemini NLP Active';
+      badge.title = '🟢 Google Gemini AI Active';
     } else {
       badge.className = 'badge rounded-pill bg-danger';
       badge.innerHTML = '<i class="bi bi-stars"></i> AI: Offline';
@@ -82,11 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hasGemini && hasGroq) {
       showStatusMsg('🟢 Both APIs active — Maximum 200% accuracy mode', 'success');
     } else if (hasGemini) {
-      showStatusMsg('🟡 Gemini AI active', 'info');
+      showStatusMsg('🟢 Google Gemini AI active & ready', 'success');
     } else if (hasGroq) {
       showStatusMsg('🟡 Groq Whisper active', 'info');
     } else {
-      showStatusMsg('🔴 No keys saved. Operating in offline regex mode.', 'secondary');
+      showStatusMsg('🟢 Using built-in cloud Gemini key', 'success');
     }
   }
 

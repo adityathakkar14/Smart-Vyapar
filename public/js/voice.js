@@ -1,196 +1,224 @@
 /**
- * Smart Vyapar — Voice Engine (3-Layer AI Pipeline)
- * Layer 1: Web Speech API   — fast, built-in, free
- * Layer 2: Groq Whisper API — ultra-accurate Indic ASR, free tier
- * Layer 3: Gemini AI API    — intelligent NLP extraction, always English output, free tier
- * 
- * Fallback: If both APIs are offline/unconfigured, regex parser is used.
+ * Smart Vyapar — Universal Voice Engine (iOS, Android, Chrome, Safari, Edge)
+ * Supports:
+ * 1. Web Speech API (Chrome, Android, Edge, Desktop)
+ * 2. MediaRecorder Audio Stream Fallback (iOS Safari, iPhone, iPad, Firefox)
+ * 3. Google Gemini AI NLP Extraction (100% English billing details)
  */
 document.addEventListener('DOMContentLoaded', () => {
 
   // ─── DOM References ──────────────────────────────────────────────────────
-  const btnMic             = document.getElementById('btn-mic');
-  const langSelect         = document.getElementById('voice-lang-select');
-  const transcriptContainer = document.getElementById('transcript-container');
-  const rawTranscriptEl    = document.getElementById('raw-transcript');
-  const statusEl           = document.getElementById('voice-status-text');
+  const btnMic              = document.getElementById('btn-mic');
+  const langSelect          = document.getElementById('voice-lang-select');
+  const transcriptContainer  = document.getElementById('transcript-container');
+  const rawTranscriptEl     = document.getElementById('raw-transcript');
+  const statusEl            = document.getElementById('voice-status-text');
 
-  const customerNameInput  = document.getElementById('customer-name');
-  const itemNameInput      = document.getElementById('item-name');
-  const itemQtyInput       = document.getElementById('item-qty');
-  const itemPriceInput     = document.getElementById('item-price');
+  const customerNameInput   = document.getElementById('customer-name');
+  const itemNameInput       = document.getElementById('item-name');
+  const itemQtyInput        = document.getElementById('item-qty');
+  const itemPriceInput      = document.getElementById('item-price');
 
-  // ─── Speech Recognition Setup ─────────────────────────────────────────────
+  // ─── Browser Capability Detection ─────────────────────────────────────────
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    btnMic.disabled = true;
-    btnMic.title = 'Speech Recognition not supported. Use Chrome or Edge.';
-    return;
+  let recognition = null;
+
+  if (SpeechRecognition) {
+    try {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+    } catch (e) {
+      console.warn('[Voice] SpeechRecognition constructor error:', e);
+      recognition = null;
+    }
   }
 
-  const recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = true; // Show real-time interim text
+  let isListening       = false;
+  let hasTranscript     = false;
+  let mediaRecorder     = null;
+  let audioChunks       = [];
+  let webSpeechText     = '';
+  let recordingTimer    = null;
 
-  let isListening    = false;
-  let hasTranscript  = false;
-  let mediaRecorder  = null;
-  let audioChunks    = [];
-  let webSpeechText  = '';
-
-  // ─── Mic Button Click ─────────────────────────────────────────────────────
-  btnMic.addEventListener('click', () => {
+  // ─── Mic Button Click Handler (Universal) ─────────────────────────────────
+  btnMic.addEventListener('click', async () => {
     if (isListening) {
-      recognition.stop();
-      stopMediaRecorder();
+      stopAllListening();
       return;
     }
 
-    // Clear previous transcript and previous voice-parsed item inputs on new recording
-    transcriptContainer.classList.add('d-none');
+    // Clear previous transcript and previous inputs on new recording
+    transcriptContainer.classList.remove('d-none');
     rawTranscriptEl.textContent = '';
-    if (statusEl) statusEl.textContent = '';
+    setStatus('🎤 Listening... Speak naturally');
     hasTranscript = false;
     webSpeechText = '';
     audioChunks = [];
 
-    // Automatically clear old item inputs for fresh voice input
+    // Automatically clear previous item inputs for fresh input
     if (itemNameInput) itemNameInput.value = '';
     if (itemQtyInput) itemQtyInput.value = '';
     if (itemPriceInput) itemPriceInput.value = '';
 
-    recognition.lang = langSelect.value;
-    try {
-      recognition.start();
-    } catch (e) {
-      console.warn('[Voice] SpeechRecognition already started:', e);
+    isListening = true;
+    btnMic.classList.add('listening');
+
+    // 1. Try Web Speech API (if supported on this device/browser)
+    if (recognition) {
+      recognition.lang = langSelect.value;
+      try {
+        recognition.start();
+      } catch (e) {
+        console.warn('[Voice] Web Speech start notice:', e);
+      }
     }
 
-    // Simultaneously start audio capture (for Groq Whisper)
-    startAudioCapture();
+    // 2. Start MediaRecorder (for iOS Safari audio stream / Groq fallback)
+    await startMediaRecorder();
+
+    // Auto-stop after 8 seconds of continuous recording if user doesn't tap again
+    clearTimeout(recordingTimer);
+    recordingTimer = setTimeout(() => {
+      if (isListening) stopAllListening();
+    }, 8000);
   });
 
-  // ─── Audio Capture (for Groq Whisper) ────────────────────────────────────
-  async function startAudioCapture() {
-    if (!SmartVyaparAI.isGroqConfigured()) return; // Skip if no Groq key
+  // ─── MediaRecorder Audio Capture ──────────────────────────────────────────
+  async function startMediaRecorder() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? { mimeType: 'audio/webm;codecs=opus' }
-        : {};
+      const mimeType = getSupportedAudioMime();
+      const options = mimeType ? { mimeType } : {};
+      
       mediaRecorder = new MediaRecorder(stream, options);
       audioChunks = [];
-      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
-      mediaRecorder.start(250); // collect chunks every 250ms
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.start(250);
     } catch (e) {
-      console.warn('[Voice] Microphone access for Groq denied:', e.message);
+      console.warn('[Voice] Audio recording error:', e.message);
       mediaRecorder = null;
     }
   }
 
+  function getSupportedAudioMime() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/wav'];
+    for (const t of types) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return '';
+  }
+
   function stopMediaRecorder() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-      mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+      try {
+        mediaRecorder.stop();
+        mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+      } catch (e) {}
     }
   }
 
-  // ─── Recognition Lifecycle ─────────────────────────────────────────────────
-  recognition.onstart = () => {
-    isListening = true;
-    btnMic.classList.add('listening');
-    transcriptContainer.classList.remove('d-none');
-    const langName = langSelect.options[langSelect.selectedIndex].text;
-    setStatus(`🎤 Listening (${langName})... Speak naturally`);
-    rawTranscriptEl.textContent = '';
-  };
-
-  recognition.onresult = (event) => {
-    // Show interim results in real-time
-    let interim = '';
-    let final   = '';
-    for (const result of event.results) {
-      if (result.isFinal) final   += result[0].transcript;
-      else                interim += result[0].transcript;
-    }
-    rawTranscriptEl.textContent = (final || interim).trim();
-    if (final) webSpeechText = final.trim();
-  };
-
-  recognition.onerror = (event) => {
-    console.error('[Voice] SpeechRecognition error:', event.error);
-    const msgs = {
-      'no-speech'       : 'No speech detected. Please speak clearly.',
-      'audio-capture'   : 'Microphone not found. Check your device.',
-      'not-allowed'     : 'Microphone permission denied.',
-      'network'         : 'Network error. Try again.',
+  // ─── Web Speech Recognition Callbacks ─────────────────────────────────────
+  if (recognition) {
+    recognition.onstart = () => {
+      const langName = langSelect.options[langSelect.selectedIndex].text;
+      setStatus(`🎤 Listening (${langName})... Speak now`);
     };
-    setStatus('⚠️ ' + (msgs[event.error] || `Error: ${event.error}`));
-    stopListening();
-    stopMediaRecorder();
-  };
 
-  recognition.onend = async () => {
-    stopListening();
-    stopMediaRecorder();
+    recognition.onresult = (event) => {
+      let interim = '';
+      let final = '';
+      for (const result of event.results) {
+        if (result.isFinal) final += result[0].transcript;
+        else interim += result[0].transcript;
+      }
+      rawTranscriptEl.textContent = (final || interim).trim();
+      if (final) webSpeechText = final.trim();
+    };
 
-    const transcript = webSpeechText || rawTranscriptEl.textContent.trim();
-    if (!transcript) {
-      setStatus('❓ Nothing captured. Tap mic to try again.');
-      return;
-    }
+    recognition.onerror = (event) => {
+      console.warn('[Voice] SpeechRecognition status:', event.error);
+      if (event.error === 'not-allowed') {
+        setStatus('⚠️ Microphone permission required.');
+      }
+    };
 
-    rawTranscriptEl.textContent = transcript;
-    await processSpeech(transcript);
-  };
+    recognition.onend = () => {
+      if (isListening) {
+        stopAllListening();
+      }
+    };
+  }
 
-  function stopListening() {
+  // ─── Stop Listening & Process Pipeline ────────────────────────────────────
+  async function stopAllListening() {
+    clearTimeout(recordingTimer);
     isListening = false;
     btnMic.classList.remove('listening');
+
+    if (recognition) {
+      try { recognition.stop(); } catch (e) {}
+    }
+    stopMediaRecorder();
+
+    // Give MediaRecorder a moment to flush final data chunk
+    setTimeout(async () => {
+      const transcript = webSpeechText || rawTranscriptEl.textContent.trim();
+      await processSpeech(transcript);
+    }, 300);
   }
 
-  // ─── Main Processing Pipeline ────────────────────────────────────────────
-  async function processSpeech(webSpeechTranscript) {
+  // ─── Speech Processing Engine ─────────────────────────────────────────────
+  async function processSpeech(transcriptText) {
     setStatus('⏳ Processing with AI...');
 
-    let finalTranscript = webSpeechTranscript;
+    let finalTranscript = transcriptText;
 
-    // LAYER 2: Groq Whisper (used when Web Speech is weak or if configured)
-    if (SmartVyaparAI.isGroqConfigured() && audioChunks.length > 0 && (!webSpeechTranscript || webSpeechTranscript.length < 4)) {
-      setStatus('🔊 Transcribing audio with Groq Whisper...');
+    // If Web Speech didn't capture text (e.g. on iOS Safari), transcribe audio chunks with Groq Whisper
+    if ((!finalTranscript || finalTranscript.length < 2) && audioChunks.length > 0) {
+      setStatus('🔊 Transcribing voice audio...');
       const audioBlob = new Blob(audioChunks, {
-        type: mediaRecorder?.mimeType || 'audio/webm'
+        type: mediaRecorder?.mimeType || 'audio/mp4'
       });
       const groqTranscript = await SmartVyaparAI.transcribeAudio(audioBlob, langSelect.value);
-      if (groqTranscript && groqTranscript.length >= 3) {
+      if (groqTranscript) {
         finalTranscript = groqTranscript;
-        console.log('[Voice] Using Groq transcript:', groqTranscript);
         rawTranscriptEl.textContent = groqTranscript;
       }
     }
 
-    // LAYER 3: Gemini NLP extraction
-    if (SmartVyaparAI.isGeminiConfigured()) {
-      setStatus('🧠 Gemini is understanding your speech...');
-      const result = await SmartVyaparAI.extractWithGemini(finalTranscript);
-      if (result) {
-        fillForm(result.customerName, result.itemName, result.quantity, result.price);
-        setStatus('✅ Done! Fields filled in English.');
-        return;
-      }
-      console.warn('[Voice] Gemini extraction failed, falling back to regex');
+    if (!finalTranscript) {
+      setStatus('❓ No speech heard. Tap mic and speak clearly.');
+      return;
     }
 
-    // FALLBACK: Local Regex Parser
+    rawTranscriptEl.textContent = finalTranscript;
+
+    // LAYER 3: Google Gemini AI extraction
+    setStatus('🧠 Gemini is understanding your speech...');
+    const result = await SmartVyaparAI.extractWithGemini(finalTranscript);
+    if (result) {
+      fillForm(result.customerName, result.itemName, result.quantity, result.price);
+      setStatus('✅ Done! Details filled in English.');
+      return;
+    }
+
+    // FALLBACK: Offline regex parser
     setStatus('⚙️ Using offline parser...');
     const fallback = parseWithRegex(finalTranscript);
     fillForm(fallback.customerName, fallback.itemName, fallback.quantity, fallback.price);
-    setStatus(SmartVyaparAI.isGeminiConfigured()
-      ? '⚠️ AI unavailable — used offline parser'
-      : '⚙️ Parsed offline (add Gemini key for AI accuracy)');
+    setStatus('⚙️ Parsed offline');
   }
 
-  // ─── Form Fill with Feedback ─────────────────────────────────────────────
+  // ─── Form Auto-Fill ───────────────────────────────────────────────────────
   function fillForm(customerName, itemName, quantity, price) {
     let autofilled = false;
 
@@ -214,14 +242,15 @@ document.addEventListener('DOMContentLoaded', () => {
     hasTranscript = true;
 
     if (autofilled) {
+      window.showToast?.('🎤 Voice input parsed in English!');
       const formEl = document.getElementById('billing-form');
       if (formEl) {
-        formEl.style.transition = 'box-shadow 0.4s ease';
-        formEl.style.boxShadow = '0 0 18px rgba(15, 76, 92, 0.5)';
-        setTimeout(() => { formEl.style.boxShadow = 'none'; }, 2000);
+        formEl.style.transition = 'box-shadow 0.3s ease';
+        formEl.style.boxShadow = '0 0 15px rgba(15, 76, 92, 0.5)';
+        setTimeout(() => { formEl.style.boxShadow = 'none'; }, 1800);
       }
     } else {
-      setStatus("❓ Couldn't understand. Please speak again or fill manually.");
+      setStatus("❓ Couldn't extract product details. Please try speaking again.");
     }
   }
 
@@ -243,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FALLBACK: Local Regex / NLP Parser (works offline, no API keys needed)
+  // FALLBACK: Local Regex / NLP Parser (offline mode)
   // ═══════════════════════════════════════════════════════════════════════════
 
   function normalizeDigits(text) {
@@ -307,12 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
     {match:['કોફી','coffee','kofi','कॉफी','nescafe'],display:'Coffee'},
     {match:['દૂધ','dudh','doodh','दूध','milk','amul'],display:'Milk'},
     {match:['દહીં','dahi','curd','दही'],display:'Curd'},
-    {match:['ઘી','ghee'],display:'Desi Ghee'},
     {match:['પનીર','paneer','पनीर'],display:'Paneer'},
     {match:['મીઠું','mithu','namak','नमक','salt'],display:'Salt'},
     {match:['હળદર','haldar','haldi','हल्दी','turmeric'],display:'Turmeric Powder'},
     {match:['મરચું','marchu','mirchi','mirch','मिर्च','chilli'],display:'Chilli Powder'},
-    {match:['જીરું','jiru','jeera','जीरा','cumin'],display:'Cumin Seeds'},
+    {match:['જીરું','jiru','jeera','जीરા','cumin'],display:'Cumin Seeds'},
     {match:['ગરમ મસાલો','garam masala','masala','मसाला'],display:'Garam Masala'},
     {match:['સાબુ','sabu','soap','साबुन','lifebuoy','dettol','lux','santoor'],display:'Soap'},
     {match:['સર્ફ','surf','detergent','ariel','tide','nirma','ghadi'],display:'Detergent'},
@@ -336,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let rawCustomer='', parsedItem='', parsedQty='', parsedPrice='';
 
-    // Customer extraction
     for (let i=0; i<words.length; i++) {
       const w = words[i].toLowerCase();
       if (['ને','ભાઈને','બેનને','કો','को','ne','ko'].includes(w) && i>0) {
@@ -353,20 +380,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const parsedCustomer = transliterateToEnglish(rawCustomer);
 
-    // Quantity
     const qm = lower.match(/(\d+(?:\.\d+)?)\s*(kilo|kg|liter|litre|gram|gm|ltr|ml|nag|piece|pcs|packet|pkt|bottle|dozen|dzn|કિલો|ગ્રામ|લીટર|નંગ|પેકેટ|ડઝન)\b/i);
     if (qm) parsedQty = qm[1];
 
-    // Price
     const pm = lower.match(/(\d+(?:\.\d+)?)\s*(?:rupiya|rupees|rs|₹|રૂપિયા|रुपये|ભાવે|rate)\b/i);
     if (pm) parsedPrice = pm[1];
 
-    // Item
     for (const entry of groceryDict) {
       if (entry.match.some(kw => lower.includes(kw.toLowerCase()))) { parsedItem = entry.display; break; }
     }
 
-    // Number fallback
     const allNums = lower.match(/(\d+(?:\.\d+)?)/g) || [];
     if (!parsedQty && !parsedPrice) {
       if (allNums.length >= 2) { parsedQty = allNums[0]; parsedPrice = allNums[1]; }
@@ -377,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const r = allNums.filter(n=>n!==parsedQty); if (r.length) parsedPrice=r[0];
     }
 
-    // Dynamic custom item fallback
     if (!parsedItem) {
       const stopWords = new Set(['to','for','ne','ko','kilo','kg','gram','gm','liter','rs','rupees','rupiya','ને','કો','ભાઈ','ભાઈને','બેન','બેનને','જી','કિલો','ગ્રામ','લીટર','નંગ','પેકેટ','ડઝન','રૂપિયા','रुपये','को','जी']);
       const cands = words.filter(w => {
