@@ -1,17 +1,19 @@
-const CACHE_NAME = 'smart-vyapar-v1';
+const CACHE_NAME = 'smart-vyapar-v3.0.0';
 
 // Core static assets to precache on install
 const PRECACHE_ASSETS = [
   './',
   './index.html',
   './dashboard.html',
-  './css/style.css',
-  './js/billing.js',
-  './js/voice.js',
-  './js/pdf.js',
-  './js/whatsapp.js',
-  './js/dashboard.js',
-  './js/pwa.js',
+  './css/style.css?v=3.0.0',
+  './js/ai-parser.js?v=3.0.0',
+  './js/ai-settings.js?v=3.0.0',
+  './js/billing.js?v=3.0.0',
+  './js/voice.js?v=3.0.0',
+  './js/pdf.js?v=3.0.0',
+  './js/whatsapp.js?v=3.0.0',
+  './js/dashboard.js?v=3.0.0',
+  './js/pwa.js?v=3.0.0',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -20,26 +22,26 @@ const PRECACHE_ASSETS = [
   './icons/icon.svg'
 ];
 
-// Install Event - Precache core assets
+// Install Event - Precache core assets & skip waiting
 self.addEventListener('install', (event) => {
+  console.log('[ServiceWorker] Installing v3.0.0 - Purging old caches');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Pre-caching offline shell');
       return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn('[ServiceWorker] Some assets failed to precache:', err);
+        console.warn('[ServiceWorker] Precache notice:', err);
       });
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event - Clean up old cache versions
+// Activate Event - Immediately claim clients and purge old cache versions
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache:', key);
+            console.log('[ServiceWorker] Deleting obsolete cache:', key);
             return caches.delete(key);
           }
         })
@@ -48,52 +50,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Dynamic caching strategy
+// Fetch Event - Network-First for JS and API calls, Cache-First for static assets
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Skip non-GET requests (e.g. POST to save bills)
+  // Skip non-GET requests (e.g. POST to save bills or AI endpoints)
   if (request.method !== 'GET') {
     return;
   }
 
-  // API calls: Network-first, do not cache failing API calls
-  if (url.pathname.includes('/server/api/')) {
-    event.respondWith(
-      fetch(request).catch(() => {
-        return new Response(JSON.stringify({ error: 'You are currently offline' }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
-    return;
-  }
-
-  // HTML Navigation: Network-first with Cache fallback
-  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+  // Network-First for JS and HTML (Ensures latest AI code is always executed)
+  if (request.url.includes('.js') || request.url.includes('.html') || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          // Cache latest copy
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => {
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) return cachedResponse;
-          // Fallback to index.html if specific page isn't in cache
-          return caches.match('./index.html');
-        })
-    );
-    return;
-  }
-
-  // Static Assets (CSS, JS, Fonts, Images, CDNs): Stale-While-Revalidate
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
@@ -103,11 +73,29 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch((err) => {
-          // Network failed, nothing to do if we have cachedResponse
-        });
+        .catch(() => {
+          return caches.match(request);
+        })
+    );
+    return;
+  }
 
-      return cachedResponse || fetchPromise;
+  // Cache-First for static assets (images, fonts, icons)
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(request).then((networkResponse) => {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          return networkResponse;
+        }
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseToCache);
+        });
+        return networkResponse;
+      });
     })
   );
 });
