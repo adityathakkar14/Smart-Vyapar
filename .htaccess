@@ -1,0 +1,52 @@
+# ============================================================
+# Smart Vyapar - Hostinger / Apache / LiteSpeed Configuration
+# ============================================================
+
+Options -Indexes
+RewriteEngine On
+
+# 1. Force HTTPS (Crucial for Microphone Voice Input & PWA Service Workers)
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# 2. Prevent direct access to sensitive config and database files
+<FilesMatch "(^#.*#|\.(bak|config|dist|fla|inc|ini|log|psd|sh|sql|sw[op]|env)|db\.config\.php)$">
+  Require all denied
+</FilesMatch>
+
+# 3. Proper MIME types
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest .json
+  AddType image/svg+xml .svg
+</IfModule>
+
+# 4. Service Worker Headers
+<IfModule mod_headers.c>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Service-Worker-Allowed "/"
+  </Files>
+</IfModule>
+
+# 5. URL Rewriting to Public Directory
+# If accessing the root, serve public/index.html
+RewriteRule ^$ public/index.html [L]
+RewriteRule ^index\.html$ public/index.html [L]
+RewriteRule ^dashboard(\.html)?$ public/dashboard.html [L]
+
+# Serve PWA manifest, service worker, and public assets
+RewriteRule ^manifest\.json$ public/manifest.json [L]
+RewriteRule ^sw\.js$ public/sw.js [L]
+RewriteRule ^icons/(.*)$ public/icons/$1 [L]
+RewriteRule ^css/(.*)$ public/css/$1 [L]
+RewriteRule ^js/(.*)$ public/js/$1 [L]
+
+# Route /api/ to /server/api/
+RewriteRule ^api/invoices$ server/api/invoices.php [L]
+RewriteRule ^api/analytics$ server/api/analytics.php [L]
+RewriteRule ^api/merchants$ server/api/merchants.php [L]
+
+# Enable Gzip Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml
+</IfModule>

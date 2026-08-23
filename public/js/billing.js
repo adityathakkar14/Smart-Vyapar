@@ -166,28 +166,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 2. Save to DB with Offline LocalStorage Fallback (Phase 5)
       let invoiceSaved = false;
-      try {
-        const response = await fetch('../server/api/invoices.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(invoiceData)
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.status === 'success') {
-            console.log("Invoice saved to server DB with ID:", result.invoice_id);
-            window.showToast?.('Invoice generated and saved to database!');
-            invoiceSaved = true;
+      const invoiceEndpoints = [
+        '/api/invoices',
+        '../server/api/invoices.php',
+        'server/api/invoices.php'
+      ];
+
+      for (const endpoint of invoiceEndpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(invoiceData)
+          });
+          
+          if (response.ok) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+              const result = await response.json();
+              if (result && result.status === 'success') {
+                console.log(`[Billing] Invoice saved to ${endpoint} with ID:`, result.invoice_id);
+                window.showToast?.('Invoice generated and saved successfully!');
+                invoiceSaved = true;
+                break;
+              }
+            }
           }
+        } catch (dbError) {
+          // Continue to next endpoint
         }
-      } catch (dbError) {
-        console.warn("Server DB not available, falling back to local storage:", dbError);
       }
 
-      // Always sync/fallback to LocalStorage for offline PWA & static hosts (Vercel)
+      // Always sync to LocalStorage for offline PWA & static hosts (Vercel)
       saveInvoiceLocally(invoiceData);
       if (!invoiceSaved) {
         window.showToast?.('Invoice generated and saved to offline storage!');

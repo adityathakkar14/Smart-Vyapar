@@ -14,28 +14,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let data = null;
 
-  try {
-    // Attempt to fetch Analytics Data from PHP server
-    const response = await fetch('../server/api/analytics.php');
-    if (response.ok) {
-      const result = await response.json();
-      if (result.status === 'success' && result.data) {
-        data = result.data;
+  // Try fetching from available API endpoints
+  const apiEndpoints = [
+    '/api/analytics',
+    '../server/api/analytics.php',
+    'server/api/analytics.php'
+  ];
+
+  for (const endpoint of apiEndpoints) {
+    try {
+      const response = await fetch(endpoint);
+      if (response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const result = await response.json();
+          if (result && result.status === 'success' && result.data) {
+            data = result.data;
+            console.log(`[Dashboard] Analytics loaded from ${endpoint}`);
+            break;
+          }
+        }
       }
+    } catch (err) {
+      // Ignore individual endpoint errors and continue
     }
-  } catch (err) {
-    console.warn("Server analytics API not reachable, loading local storage data:", err);
   }
 
   // Fallback to LocalStorage / Offline data (for Vercel deployment & offline PWA)
   if (!data) {
+    console.log("[Dashboard] Using local offline storage analytics");
     data = loadLocalAnalytics();
   }
 
   renderDashboard(data);
 
   function loadLocalAnalytics() {
-    const rawInvoices = JSON.parse(localStorage.getItem('smart_vyapar_invoices') || '[]');
+    let rawInvoices = [];
+    try {
+      rawInvoices = JSON.parse(localStorage.getItem('smart_vyapar_invoices') || '[]');
+    } catch (e) {
+      rawInvoices = [];
+    }
     
     // Seed default sample data if totally empty
     const seedInvoices = rawInvoices.length > 0 ? rawInvoices : [
@@ -88,81 +107,86 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function renderDashboard(data) {
-    // 1. Render Today's Revenue
-    todayRevenueEl.textContent = formatCurrency(data.todayRevenue);
+    try {
+      // 1. Render Today's Revenue
+      todayRevenueEl.textContent = formatCurrency(data.todayRevenue);
 
-    // 2. Render Revenue Trend Chart (Line Chart)
-    const trendCtx = document.getElementById('revenueTrendChart')?.getContext('2d');
-    if (trendCtx) {
-      const trendDates = data.revenueTrend.map(d => d.date);
-      const trendAmounts = data.revenueTrend.map(d => parseFloat(d.revenue));
-      
-      new Chart(trendCtx, {
-        type: 'line',
-        data: {
-          labels: trendDates.length ? trendDates : ['Today'],
-          datasets: [{
-            label: 'Revenue (₹)',
-            data: trendAmounts.length ? trendAmounts : [data.todayRevenue],
-            borderColor: primaryTeal,
-            backgroundColor: 'rgba(15, 76, 92, 0.1)',
-            borderWidth: 2,
-            pointBackgroundColor: accentSaffron,
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { beginAtZero: true }
+      // 2. Render Revenue Trend Chart (Line Chart)
+      const trendCtx = document.getElementById('revenueTrendChart')?.getContext('2d');
+      if (trendCtx) {
+        const trendDates = data.revenueTrend.map(d => d.date);
+        const trendAmounts = data.revenueTrend.map(d => parseFloat(d.revenue));
+        
+        new Chart(trendCtx, {
+          type: 'line',
+          data: {
+            labels: trendDates.length ? trendDates : ['Today'],
+            datasets: [{
+              label: 'Revenue (₹)',
+              data: trendAmounts.length ? trendAmounts : [data.todayRevenue],
+              borderColor: primaryTeal,
+              backgroundColor: 'rgba(15, 76, 92, 0.1)',
+              borderWidth: 2,
+              pointBackgroundColor: accentSaffron,
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true }
+            }
           }
-        }
-      });
-    }
+        });
+      }
 
-    // 3. Render Top Items Chart (Doughnut)
-    const topCtx = document.getElementById('topItemsChart')?.getContext('2d');
-    if (topCtx) {
-      const itemLabels = data.topItems.map(i => i.item_name);
-      const itemCounts = data.topItems.map(i => parseInt(i.count));
-      
-      new Chart(topCtx, {
-        type: 'doughnut',
-        data: {
-          labels: itemLabels.length ? itemLabels : ['No Data'],
-          datasets: [{
-            data: itemCounts.length ? itemCounts : [1],
-            backgroundColor: itemLabels.length ? pieColors : ['#ccc'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom' }
+      // 3. Render Top Items Chart (Doughnut)
+      const topCtx = document.getElementById('topItemsChart')?.getContext('2d');
+      if (topCtx) {
+        const itemLabels = data.topItems.map(i => i.item_name);
+        const itemCounts = data.topItems.map(i => parseInt(i.count));
+        
+        new Chart(topCtx, {
+          type: 'doughnut',
+          data: {
+            labels: itemLabels.length ? itemLabels : ['No Data'],
+            datasets: [{
+              data: itemCounts.length ? itemCounts : [1],
+              backgroundColor: itemLabels.length ? pieColors : ['#ccc'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' }
+            }
           }
-        }
-      });
-    }
+        });
+      }
 
-    // 4. Render Recent Invoices Table
-    if (!data.recentInvoices || data.recentInvoices.length === 0) {
-      tbodyEl.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">No recent invoices</td></tr>`;
-    } else {
-      tbodyEl.innerHTML = data.recentInvoices.map(inv => `
-        <tr>
-          <td class="text-muted small">#${inv.invoice_id}</td>
-          <td>${inv.customer_name || 'Cash Customer'}</td>
-          <td class="text-end fw-medium">${formatCurrency(inv.total_amount)}</td>
-        </tr>
-      `).join('');
-    }
+      // 4. Render Recent Invoices Table
+      if (!data.recentInvoices || data.recentInvoices.length === 0) {
+        tbodyEl.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">No recent invoices</td></tr>`;
+      } else {
+        tbodyEl.innerHTML = data.recentInvoices.map(inv => `
+          <tr>
+            <td class="text-muted small">#${inv.invoice_id}</td>
+            <td>${inv.customer_name || 'Cash Customer'}</td>
+            <td class="text-end fw-medium">${formatCurrency(inv.total_amount)}</td>
+          </tr>
+        `).join('');
+      }
 
-    // Hide loading, show content
-    loadingEl.classList.add('d-none');
-    contentEl.classList.remove('d-none');
+      // Hide loading, show content
+      loadingEl.classList.add('d-none');
+      contentEl.classList.remove('d-none');
+    } catch (renderErr) {
+      console.error("Render Error:", renderErr);
+      loadingEl.innerHTML = `<div class="alert alert-warning">Dashboard loaded with partial data.</div>`;
+    }
   }
 });

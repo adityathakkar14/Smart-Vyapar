@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "public": true,
-  "cleanUrls": true,
   "rewrites": [
+    { "source": "/server/api/analytics.php", "destination": "/api/analytics" },
+    { "source": "/server/api/invoices.php", "destination": "/api/invoices" },
+    { "source": "/api/analytics", "destination": "/api/analytics" },
+    { "source": "/api/invoices", "destination": "/api/invoices" },
     { "source": "/", "destination": "/public/index.html" },
     { "source": "/index.html", "destination": "/public/index.html" },
     { "source": "/dashboard.html", "destination": "/public/dashboard.html" },
