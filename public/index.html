@@ -39,6 +39,10 @@
       <div class="flex-grow-1 text-center">
         <h1 id="shop-name-header" class="mb-0">Ram Provision Store</h1>
       </div>
+      <!-- AI Settings Gear Button -->
+      <button class="btn-ai-settings" id="btn-ai-settings" title="AI Voice Settings" aria-label="AI Settings">
+        <i class="bi bi-gear-fill"></i>
+      </button>
     </div>
     <p class="mb-2">Smart Billing System</p>
     <button class="btn btn-sm btn-light text-teal fw-semibold btn-pwa-install d-none" id="btn-install-app">
@@ -49,22 +53,31 @@
   <main class="container-fluid px-3">
     
     <!-- Voice Input Area -->
-    <div class="d-flex justify-content-center mb-3">
+    <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
       <select class="form-select form-select-sm w-auto" id="voice-lang-select">
         <option value="gu-IN" selected>Gujarati (gu-IN)</option>
         <option value="hi-IN">Hindi (hi-IN)</option>
         <option value="en-IN">English (en-IN)</option>
       </select>
+      <!-- AI status badge -->
+      <span id="ai-status-badge" class="ai-badge ai-badge-off" title="Configure AI keys for higher accuracy">
+        <i class="bi bi-stars"></i> AI
+      </span>
     </div>
+
     <div class="mic-container">
       <button class="btn-mic" id="btn-mic" aria-label="Start Voice Recognition">
         <i class="bi bi-mic-fill"></i>
       </button>
     </div>
     
-    <div class="text-center mb-3 d-none" id="transcript-container">
-      <p class="text-muted small mb-1">Listening...</p>
-      <div class="p-2 bg-light rounded text-dark small font-monospace" id="raw-transcript"></div>
+    <!-- Transcript Container -->
+    <div class="transcript-box d-none" id="transcript-container">
+      <div class="transcript-header">
+        <i class="bi bi-soundwave me-1"></i>
+        <span id="voice-status-text">Listening...</span>
+      </div>
+      <div class="transcript-text" id="raw-transcript"></div>
     </div>
 
     <!-- Billing Form -->
@@ -149,13 +162,13 @@
     <!-- Actions -->
     <div class="d-grid gap-2 mb-4">
       <button class="btn btn-success btn-lg shadow-sm" id="btn-generate-bill" disabled>
-        <i class="bi bi-whatsapp me-2"></i> Generate & Send Bill
+        <i class="bi bi-whatsapp me-2"></i> Generate &amp; Send Bill
       </button>
     </div>
 
   </main>
 
-  <!-- Navigation (Placeholder) -->
+  <!-- Navigation -->
   <nav class="navbar fixed-bottom navbar-light bg-white border-top">
     <div class="container-fluid justify-content-around">
       <a href="index.html" class="nav-link text-primary d-flex flex-column align-items-center">
@@ -169,13 +182,74 @@
     </div>
   </nav>
 
-  <!-- Toast Container for Notifications -->
+  <!-- ── AI Settings Modal ────────────────────────────────────────────── -->
+  <div class="ai-settings-overlay d-none" id="ai-settings-overlay">
+    <div class="ai-settings-panel">
+      <div class="ai-settings-header">
+        <span><i class="bi bi-stars me-2"></i>AI Voice Settings</span>
+        <button class="ai-settings-close" id="btn-close-ai-settings" aria-label="Close">&times;</button>
+      </div>
+      <div class="ai-settings-body">
+
+        <div class="ai-key-group">
+          <label class="ai-key-label">
+            <img src="https://www.gstatic.com/lamda/images/gemini_favicon_f069958c85030456e93de685481c559f160ea06.svg" 
+                 alt="Gemini" width="16" height="16" onerror="this.style.display='none'">
+            Google Gemini API Key
+            <span class="ai-key-badge gemini">Accuracy: NLP Brain</span>
+          </label>
+          <div class="ai-key-input-wrap">
+            <input type="password" class="ai-key-input" id="gemini-key-input" 
+                   placeholder="AIza..." autocomplete="off" spellcheck="false">
+            <button class="ai-key-toggle" id="toggle-gemini-key" aria-label="Show/Hide">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <p class="ai-key-hint">
+            Free · No credit card · 
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get key →</a>
+          </p>
+        </div>
+
+        <div class="ai-key-group">
+          <label class="ai-key-label">
+            <i class="bi bi-soundwave text-success"></i>
+            Groq API Key
+            <span class="ai-key-badge groq">Accuracy: Gujarati ASR</span>
+          </label>
+          <div class="ai-key-input-wrap">
+            <input type="password" class="ai-key-input" id="groq-key-input" 
+                   placeholder="gsk_..." autocomplete="off" spellcheck="false">
+            <button class="ai-key-toggle" id="toggle-groq-key" aria-label="Show/Hide">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <p class="ai-key-hint">
+            Free · No credit card · 
+            <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Get key →</a>
+          </p>
+        </div>
+
+        <button class="btn btn-teal w-100 fw-semibold mt-2" id="btn-save-ai-keys">
+          <i class="bi bi-check-circle me-1"></i> Save & Activate AI
+        </button>
+
+        <div class="ai-status-row mt-3" id="ai-keys-status"></div>
+
+        <div class="ai-accuracy-legend mt-3">
+          <div class="legend-row"><span class="dot dot-red"></span><span>No keys — Offline regex parser (basic)</span></div>
+          <div class="legend-row"><span class="dot dot-yellow"></span><span>Gemini only — AI NLP, good accuracy</span></div>
+          <div class="legend-row"><span class="dot dot-green"></span><span>Both keys — Ultra-accurate (recommended)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
   <div class="toast-container position-fixed top-0 end-0 p-3">
     <div id="notification-toast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
-        <div class="toast-body" id="toast-message">
-          Action successful!
-        </div>
+        <div class="toast-body" id="toast-message">Action successful!</div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
@@ -188,11 +262,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   
+  <!-- AI Parser (must be before voice.js) -->
+  <script src="js/ai-parser.js"></script>
   <!-- App JS -->
   <script src="js/pwa.js"></script>
   <script src="js/billing.js"></script>
   <script src="js/voice.js"></script>
   <script src="js/pdf.js"></script>
   <script src="js/whatsapp.js"></script>
+  <!-- AI Settings Panel Controller -->
+  <script src="js/ai-settings.js"></script>
 </body>
 </html>
