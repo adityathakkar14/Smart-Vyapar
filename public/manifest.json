@@ -1,0 +1,55 @@
+{
+  "name": "Smart Vyapar - POS & Billing",
+  "short_name": "SmartVyapar",
+  "description": "Voice-enabled Smart POS & Billing Application for Indian Retailers",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0F4C5C",
+  "theme_color": "#0F4C5C",
+  "lang": "en-IN",
+  "categories": ["business", "finance", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Bill / POS",
+      "short_name": "Billing",
+      "description": "Open voice-enabled billing counter",
+      "url": "./index.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Business Analytics",
+      "short_name": "Dashboard",
+      "description": "View sales, trends, and recent invoices",
+      "url": "./dashboard.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

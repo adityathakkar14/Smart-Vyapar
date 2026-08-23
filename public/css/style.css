@@ -1,0 +1,217 @@
+:root {
+  --primary-teal: #0F4C5C;
+  --primary-teal-hover: #0a3541;
+  --accent-saffron: #F3722C;
+  --accent-saffron-hover: #d15d1f;
+  --bg-color: #F8F9FA;
+  --card-bg: #FFFFFF;
+  --text-main: #333333;
+  --text-muted: #6C757D;
+  --border-radius: 12px;
+  --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  background: linear-gradient(135deg, #F8F9FA 0%, #e9ecef 100%);
+  color: var(--text-main);
+  font-family: 'Inter', 'Roboto', sans-serif;
+  padding-bottom: 80px; /* Space for bottom nav */
+  min-height: 100vh;
+}
+
+/* Header */
+.app-header {
+  background-color: var(--primary-teal);
+  color: white;
+  padding: 1.5rem 1rem;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  box-shadow: 0 4px 10px rgba(15, 76, 92, 0.2);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.app-header p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* Mic Button */
+.mic-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.btn-mic {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background-color: var(--accent-saffron);
+  color: white;
+  border: none;
+  box-shadow: 0 8px 25px rgba(243, 114, 44, 0.5), inset 0 -4px 10px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.8rem;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s, background-color 0.2s;
+}
+
+.btn-mic:hover, .btn-mic:active {
+  transform: scale(0.95);
+  background-color: var(--accent-saffron-hover);
+}
+
+.btn-mic.listening {
+  animation: pulse 1.5s infinite;
+  background-color: #e63946;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.7); }
+  70% { box-shadow: 0 0 0 20px rgba(230, 57, 70, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+}
+
+/* Cards & Forms */
+.card {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-weight: 600;
+  padding: 1rem 1.25rem;
+}
+
+.form-control, .form-select {
+  border-radius: 8px;
+  border: 1px solid #ced4da;
+  padding: 0.85rem 1rem;
+  font-size: 1.05rem; /* Better for mobile touch */
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary-teal);
+  box-shadow: 0 0 0 0.25rem rgba(15, 76, 92, 0.25);
+}
+
+.form-label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary-teal);
+  border-color: var(--primary-teal);
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+}
+
+.btn-primary:hover, .btn-primary:active {
+  background-color: var(--primary-teal-hover) !important;
+  border-color: var(--primary-teal-hover) !important;
+}
+
+.btn-outline-primary {
+  color: var(--primary-teal);
+  border-color: var(--primary-teal);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary-teal);
+  color: white;
+}
+
+.btn-success {
+  background-color: #2a9d8f;
+  border-color: #2a9d8f;
+  border-radius: 8px;
+  padding: 0.8rem 1.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+/* Table */
+.table-responsive {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table th {
+  background-color: #f1faee;
+  color: var(--primary-teal);
+  font-weight: 600;
+  border-bottom: none;
+  font-size: 0.9rem;
+}
+
+.table td {
+  vertical-align: middle;
+  font-size: 0.95rem;
+}
+
+.table tbody tr {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.total-row {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--primary-teal);
+}
+
+/* Utilities */
+.toast-container {
+  z-index: 1055;
+}
+
+.text-teal {
+  color: var(--primary-teal) !important;
+}
+
+.bg-teal {
+  background-color: var(--primary-teal) !important;
+}
+
+.btn-pwa-install {
+  border-radius: 20px;
+  padding: 0.25rem 0.85rem;
+  font-size: 0.82rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-pwa-install:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+#offline-indicator {
+  position: sticky;
+  top: 0;
+  z-index: 1060;
+}
+
