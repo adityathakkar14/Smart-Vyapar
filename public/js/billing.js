@@ -21,6 +21,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return '₹' + parseFloat(amount).toFixed(2);
   };
 
+  // Helper to clear transcript
+  const clearVoiceTranscript = () => {
+    const transcriptContainer = document.getElementById('transcript-container');
+    const rawTranscriptEl = document.getElementById('raw-transcript');
+    const statusEl = document.getElementById('voice-status-text');
+    if (transcriptContainer) transcriptContainer.classList.add('d-none');
+    if (rawTranscriptEl) rawTranscriptEl.textContent = '';
+    if (statusEl) statusEl.textContent = '';
+  };
+
   // Add Item to Bill
   btnAddItem.addEventListener('click', () => {
     const name = itemNameInput.value.trim();
@@ -28,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const price = parseFloat(itemPriceInput.value);
 
     if (!name || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
-      alert('Please fill out item name, valid quantity, and valid price.');
+      window.showToast?.('Please fill out item name, valid quantity, and price.', true);
       return;
     }
 
@@ -44,20 +54,33 @@ document.addEventListener('DOMContentLoaded', () => {
     billItems.push(item);
     renderItems();
     
-    // Clear item inputs only
+    // 1. Clear item inputs after adding to bill
     itemNameInput.value = '';
     itemQtyInput.value = '';
     itemPriceInput.value = '';
+    
+    // 2. Clear voice transcript display
+    clearVoiceTranscript();
+    
+    window.showToast?.(`✅ Added ${item.name} (${item.qty} × ₹${item.price.toFixed(2)})`);
     itemNameInput.focus();
   });
 
-  // Clear Form (Everything)
+  // Clear Form (Everything: customer, items, bill, transcript)
   btnClearForm.addEventListener('click', () => {
-    if(confirm('Clear entire form and bill?')) {
-      form.reset();
-      billItems = [];
-      renderItems();
-    }
+    form.reset();
+    itemNameInput.value = '';
+    itemQtyInput.value = '';
+    itemPriceInput.value = '';
+    const custName = document.getElementById('customer-name');
+    const custPhone = document.getElementById('customer-phone');
+    if (custName) custName.value = '';
+    if (custPhone) custPhone.value = '';
+    
+    billItems = [];
+    renderItems();
+    clearVoiceTranscript();
+    window.showToast?.('🧹 Form and bill cleared');
   });
 
   // Remove Item

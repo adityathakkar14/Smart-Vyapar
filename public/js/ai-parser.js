@@ -8,12 +8,12 @@ const SmartVyaparAI = (() => {
   const GROQ_ENDPOINT  = 'https://api.groq.com/openai/v1/audio/transcriptions';
   const GEMINI_BASE    = 'https://generativelanguage.googleapis.com/v1beta/models';
   
-  // Standard supported Gemini models
+  // Active Gemini models for Google AI Studio
   const GEMINI_MODELS  = [
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-2.0-flash',
-    'gemini-1.5-pro'
+    'gemini-3.6-flash',
+    'gemini-flash-latest',
+    'gemini-3.7-flash',
+    'gemini-3.5-flash'
   ];
 
   function getGeminiKey() { return (localStorage.getItem('sv_gemini_key') || '').trim(); }
@@ -98,7 +98,7 @@ Rules:
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 250,
+        maxOutputTokens: 1000,
         responseMimeType: 'application/json'
       }
     };

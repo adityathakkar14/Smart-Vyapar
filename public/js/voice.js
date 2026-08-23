@@ -46,12 +46,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Clear previous transcript on new recording
+    // Clear previous transcript and previous voice-parsed item inputs on new recording
     transcriptContainer.classList.add('d-none');
     rawTranscriptEl.textContent = '';
+    if (statusEl) statusEl.textContent = '';
     hasTranscript = false;
     webSpeechText = '';
     audioChunks = [];
+
+    // Automatically clear old item inputs for fresh voice input
+    if (itemNameInput) itemNameInput.value = '';
+    if (itemQtyInput) itemQtyInput.value = '';
+    if (itemPriceInput) itemPriceInput.value = '';
 
     recognition.lang = langSelect.value;
     try {
