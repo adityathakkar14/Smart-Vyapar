@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function fillForm(customerName, itemName, quantity, price) {
     let autofilled = false;
 
-    if (customerName && !customerNameInput.value) {
+    if (customerName) {
       customerNameInput.value = customerName;
       autofilled = true;
     }
@@ -230,11 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
       itemNameInput.value = itemName;
       autofilled = true;
     }
-    if (quantity != null) {
+    if (quantity != null && !isNaN(quantity)) {
       itemQtyInput.value = quantity;
       autofilled = true;
     }
-    if (price != null) {
+    if (price != null && !isNaN(price)) {
       itemPriceInput.value = price;
       autofilled = true;
     }
