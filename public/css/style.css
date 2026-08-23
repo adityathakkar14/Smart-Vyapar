@@ -289,19 +289,29 @@ body {
   word-break: break-word;
 }
 
-/* ── AI Settings Overlay & Panel ─────────────────────────────────────── */
+/* ── AI Settings Overlay & Panel ────────────────────────────────────────────── */
 .ai-settings-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 2000;
-  display: none; /* shown via JS as flex */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 99999;
+  display: flex;
   align-items: flex-end;
   justify-content: center;
+  /* Use visibility so position:fixed always applies — no display toggle needed */
+  visibility: hidden;
   opacity: 0;
-  transition: opacity 0.28s;
+  pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
 }
-.ai-settings-overlay.active { opacity: 1; }
+.ai-settings-overlay.active {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
 
 .ai-settings-panel {
   background: white;

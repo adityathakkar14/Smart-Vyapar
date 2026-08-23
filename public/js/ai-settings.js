@@ -23,13 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show / hide panel
   btnOpen?.addEventListener('click', () => {
     loadKeys();
-    overlay.style.display = 'flex';
-    setTimeout(() => overlay.classList.add('active'), 10);
+    overlay.classList.add('active');
   });
 
   function closePanel() {
     overlay.classList.remove('active');
-    setTimeout(() => { overlay.style.display = 'none'; }, 280);
   }
   btnClose?.addEventListener('click', closePanel);
   overlay?.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
