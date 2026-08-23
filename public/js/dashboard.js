@@ -14,11 +14,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let data = null;
 
-  // Try fetching from available API endpoints
+  // Try fetching from the server API first
   const apiEndpoints = [
-    '/api/analytics',
     '../server/api/analytics.php',
-    'server/api/analytics.php'
+    'server/api/analytics.php',
+    '/api/analytics'
   ];
 
   for (const endpoint of apiEndpoints) {
@@ -30,51 +30,45 @@ document.addEventListener('DOMContentLoaded', async () => {
           const result = await response.json();
           if (result && result.status === 'success' && result.data) {
             data = result.data;
-            console.log(`[Dashboard] Analytics loaded from ${endpoint}`);
+            console.log(`[Dashboard] Analytics loaded from server: ${endpoint}`);
             break;
           }
         }
       }
     } catch (err) {
-      // Ignore individual endpoint errors and continue
+      // Continue to next endpoint or fallback
     }
   }
 
-  // Fallback to LocalStorage / Offline data (for Vercel deployment & offline PWA)
+  // If server is not reachable, calculate from real locally saved invoices (or show 0/empty state)
   if (!data) {
-    console.log("[Dashboard] Using local offline storage analytics");
+    console.log("[Dashboard] Server API not reachable, reading local invoices");
     data = loadLocalAnalytics();
   }
 
   renderDashboard(data);
 
+  // Helper to calculate analytics from real user-saved invoices (or empty state)
   function loadLocalAnalytics() {
-    let rawInvoices = [];
+    let invoices = [];
     try {
-      rawInvoices = JSON.parse(localStorage.getItem('smart_vyapar_invoices') || '[]');
+      invoices = JSON.parse(localStorage.getItem('smart_vyapar_invoices') || '[]');
     } catch (e) {
-      rawInvoices = [];
+      invoices = [];
     }
-    
-    // Seed default sample data if totally empty
-    const seedInvoices = rawInvoices.length > 0 ? rawInvoices : [
-      { invoice_id: 1003, customer_name: 'Aditya Thakkar', total_amount: 450, date_created: new Date().toISOString(), items: [{ name: 'Rice 5kg', qty: 1, price: 300 }, { name: 'Sugar 2kg', qty: 2, price: 75 }] },
-      { invoice_id: 1002, customer_name: 'Rajesh Kumar', total_amount: 180, date_created: new Date(Date.now() - 86400000).toISOString(), items: [{ name: 'Tea 500g', qty: 1, price: 180 }] },
-      { invoice_id: 1001, customer_name: 'Pooja Patel', total_amount: 620, date_created: new Date(Date.now() - 172800000).toISOString(), items: [{ name: 'Oil 1L', qty: 2, price: 160 }, { name: 'Wheat Flour 5kg', qty: 1, price: 300 }] }
-    ];
 
     const todayStr = new Date().toISOString().slice(0, 10);
     let todayRevenue = 0;
     const itemMap = {};
     const trendMap = {};
 
-    // Initialize last 7 days
+    // Initialize last 7 days with 0
     for (let i = 6; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
       trendMap[d] = 0;
     }
 
-    seedInvoices.forEach(inv => {
+    invoices.forEach(inv => {
       const invDate = (inv.date_created || '').slice(0, 10);
       const amt = parseFloat(inv.total_amount || 0);
 
@@ -101,8 +95,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return {
       todayRevenue,
       revenueTrend,
-      topItems: topItems.length ? topItems : [{ item_name: 'Rice', count: 12 }, { item_name: 'Sugar', count: 8 }, { item_name: 'Tea', count: 5 }],
-      recentInvoices: seedInvoices.slice(0, 10)
+      topItems,
+      recentInvoices: invoices.slice(0, 10)
     };
   }
 
@@ -114,16 +108,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 2. Render Revenue Trend Chart (Line Chart)
       const trendCtx = document.getElementById('revenueTrendChart')?.getContext('2d');
       if (trendCtx) {
-        const trendDates = data.revenueTrend.map(d => d.date);
-        const trendAmounts = data.revenueTrend.map(d => parseFloat(d.revenue));
+        const trendDates = (data.revenueTrend || []).map(d => d.date);
+        const trendAmounts = (data.revenueTrend || []).map(d => parseFloat(d.revenue || 0));
         
         new Chart(trendCtx, {
           type: 'line',
           data: {
-            labels: trendDates.length ? trendDates : ['Today'],
+            labels: trendDates.length ? trendDates : ['No Data'],
             datasets: [{
               label: 'Revenue (₹)',
-              data: trendAmounts.length ? trendAmounts : [data.todayRevenue],
+              data: trendAmounts.length ? trendAmounts : [0],
               borderColor: primaryTeal,
               backgroundColor: 'rgba(15, 76, 92, 0.1)',
               borderWidth: 2,
@@ -145,16 +139,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 3. Render Top Items Chart (Doughnut)
       const topCtx = document.getElementById('topItemsChart')?.getContext('2d');
       if (topCtx) {
-        const itemLabels = data.topItems.map(i => i.item_name);
-        const itemCounts = data.topItems.map(i => parseInt(i.count));
+        const hasItems = data.topItems && data.topItems.length > 0;
+        const itemLabels = hasItems ? data.topItems.map(i => i.item_name) : ['No sales yet'];
+        const itemCounts = hasItems ? data.topItems.map(i => parseInt(i.count)) : [1];
+        const chartColors = hasItems ? pieColors : ['#e0e0e0'];
         
         new Chart(topCtx, {
           type: 'doughnut',
           data: {
-            labels: itemLabels.length ? itemLabels : ['No Data'],
+            labels: itemLabels,
             datasets: [{
-              data: itemCounts.length ? itemCounts : [1],
-              backgroundColor: itemLabels.length ? pieColors : ['#ccc'],
+              data: itemCounts,
+              backgroundColor: chartColors,
               borderWidth: 0
             }]
           },
@@ -170,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 4. Render Recent Invoices Table
       if (!data.recentInvoices || data.recentInvoices.length === 0) {
-        tbodyEl.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">No recent invoices</td></tr>`;
+        tbodyEl.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="bi bi-receipt me-1"></i> No recent invoices recorded yet.</td></tr>`;
       } else {
         tbodyEl.innerHTML = data.recentInvoices.map(inv => `
           <tr>
