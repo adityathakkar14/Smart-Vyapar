@@ -23,13 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show / hide panel
   btnOpen?.addEventListener('click', () => {
     loadKeys();
-    overlay.classList.remove('d-none');
+    overlay.style.display = 'flex';
     setTimeout(() => overlay.classList.add('active'), 10);
   });
 
   function closePanel() {
     overlay.classList.remove('active');
-    setTimeout(() => overlay.classList.add('d-none'), 280);
+    setTimeout(() => { overlay.style.display = 'none'; }, 280);
   }
   btnClose?.addEventListener('click', closePanel);
   overlay?.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
