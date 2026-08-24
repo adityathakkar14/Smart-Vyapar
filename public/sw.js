@@ -1,19 +1,17 @@
-const CACHE_NAME = 'smart-vyapar-v3.0.0';
+const CACHE_NAME = 'smart-vyapar-v4.0.0';
 
 // Core static assets to precache on install
 const PRECACHE_ASSETS = [
   './',
   './index.html',
   './dashboard.html',
-  './css/style.css?v=3.0.0',
-  './js/ai-parser.js?v=3.0.0',
-  './js/ai-settings.js?v=3.0.0',
-  './js/billing.js?v=3.0.0',
-  './js/voice.js?v=3.0.0',
-  './js/pdf.js?v=3.0.0',
-  './js/whatsapp.js?v=3.0.0',
-  './js/dashboard.js?v=3.0.0',
-  './js/pwa.js?v=3.0.0',
+  './css/style.css?v=4.0.0',
+  './js/billing.js?v=4.0.0',
+  './js/voice.js?v=4.0.0',
+  './js/pdf.js?v=4.0.0',
+  './js/whatsapp.js?v=4.0.0',
+  './js/dashboard.js?v=4.0.0',
+  './js/pwa.js?v=4.0.0',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

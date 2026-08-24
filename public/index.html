@@ -35,16 +35,8 @@
 
   <!-- Header -->
   <header class="app-header">
-    <div class="d-flex justify-content-between align-items-center mb-1">
-      <div class="flex-grow-1 text-center">
-        <h1 id="shop-name-header" class="mb-0">Ram Provision Store</h1>
-      </div>
-      <!-- AI Settings Gear Button (Bootstrap Modal Trigger) -->
-      <button class="btn btn-outline-light btn-sm rounded-circle p-2" id="btn-ai-settings" 
-              data-bs-toggle="modal" data-bs-target="#aiSettingsModal" 
-              title="AI Voice Settings" aria-label="AI Settings">
-        <i class="bi bi-gear-fill"></i>
-      </button>
+    <div class="d-flex justify-content-center align-items-center mb-1">
+      <h1 id="shop-name-header" class="mb-0">Ram Provision Store</h1>
     </div>
     <p class="mb-2">Smart Billing System</p>
     <button class="btn btn-sm btn-light text-teal fw-semibold btn-pwa-install d-none" id="btn-install-app">
@@ -56,17 +48,14 @@
     
     <!-- Voice Input Area -->
     <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
-      <select class="form-select form-select-sm w-auto" id="voice-lang-select">
-        <option value="gu-IN" selected>Gujarati (gu-IN)</option>
-        <option value="hi-IN">Hindi (hi-IN)</option>
-        <option value="en-IN">English (en-IN)</option>
+      <label for="voice-lang-select" class="small fw-medium text-muted d-flex align-items-center me-1">
+        <i class="bi bi-translate me-1"></i> Language:
+      </label>
+      <select class="form-select form-select-sm w-auto shadow-sm" id="voice-lang-select">
+        <option value="gu-IN" selected>Gujarati (ગુજરાતી)</option>
+        <option value="hi-IN">Hindi (हिन्दी)</option>
+        <option value="en-IN">English (India)</option>
       </select>
-      <!-- AI status badge (clickable to open settings) -->
-      <span id="ai-status-badge" class="badge rounded-pill bg-danger" 
-            style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#aiSettingsModal" 
-            title="Click to configure AI keys">
-        <i class="bi bi-stars"></i> AI: Offline
-      </span>
     </div>
 
     <div class="mic-container">
@@ -186,74 +175,6 @@
     </div>
   </nav>
 
-  <!-- ── Standard Bootstrap 5 AI Settings Modal ── -->
-  <div class="modal fade" id="aiSettingsModal" tabindex="-1" aria-labelledby="aiSettingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 shadow">
-        <div class="modal-header text-white" style="background-color: #0F4C5C;">
-          <h5 class="modal-title fs-6 fw-bold" id="aiSettingsModalLabel">
-            <i class="bi bi-stars me-2"></i>AI Voice Settings (Free APIs)
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-3">
-
-          <!-- Gemini Key -->
-          <div class="mb-3">
-            <label for="gemini-key-input" class="form-label fw-semibold small d-flex justify-content-between">
-              <span><i class="bi bi-cpu text-primary me-1"></i> Google Gemini API Key</span>
-              <span class="badge bg-primary-subtle text-primary">NLP Brain</span>
-            </label>
-            <div class="input-group input-group-sm">
-              <input type="password" class="form-control font-monospace" id="gemini-key-input" 
-                     placeholder="Paste AIza... key here" autocomplete="off">
-              <button class="btn btn-outline-secondary" type="button" id="toggle-gemini-key">
-                <i class="bi bi-eye"></i>
-              </button>
-            </div>
-            <div class="form-text small">
-              100% Free · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get free Gemini key &rarr;</a>
-            </div>
-          </div>
-
-          <!-- Groq Key -->
-          <div class="mb-3">
-            <label for="groq-key-input" class="form-label fw-semibold small d-flex justify-content-between">
-              <span><i class="bi bi-soundwave text-success me-1"></i> Groq Whisper API Key</span>
-              <span class="badge bg-success-subtle text-success">Gujarati ASR</span>
-            </label>
-            <div class="input-group input-group-sm">
-              <input type="password" class="form-control font-monospace" id="groq-key-input" 
-                     placeholder="Paste gsk_... key here" autocomplete="off">
-              <button class="btn btn-outline-secondary" type="button" id="toggle-groq-key">
-                <i class="bi bi-eye"></i>
-              </button>
-            </div>
-            <div class="form-text small">
-              100% Free · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Get free Groq key &rarr;</a>
-            </div>
-          </div>
-
-          <div id="ai-keys-status" class="mb-3"></div>
-
-          <button type="button" class="btn btn-success w-100 fw-semibold" id="btn-save-ai-keys">
-            <i class="bi bi-check-circle me-1"></i> Save &amp; Activate AI
-          </button>
-
-          <hr class="my-3 text-muted">
-
-          <div class="bg-light p-2 rounded small text-muted">
-            <div class="fw-semibold text-dark mb-1">Status Modes:</div>
-            <div>🔴 <strong>Offline</strong>: Built-in local parser</div>
-            <div>🟡 <strong>Gemini Active</strong>: High accuracy AI understanding</div>
-            <div>🟢 <strong>Dual AI Active</strong>: 200% maximum accuracy</div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Toast Container -->
   <div class="toast-container position-fixed top-0 end-0 p-3">
     <div id="notification-toast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
@@ -271,15 +192,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   
-  <!-- AI Parser (must be before voice.js) -->
-  <script src="js/ai-parser.js?v=3.0.0"></script>
   <!-- App JS -->
-  <script src="js/pwa.js?v=3.0.0"></script>
-  <script src="js/billing.js?v=3.0.0"></script>
-  <script src="js/voice.js?v=3.0.0"></script>
-  <script src="js/pdf.js?v=3.0.0"></script>
-  <script src="js/whatsapp.js?v=3.0.0"></script>
-  <!-- AI Settings Panel Controller -->
-  <script src="js/ai-settings.js?v=3.0.0"></script>
+  <script src="js/pwa.js?v=4.0.0"></script>
+  <script src="js/billing.js?v=4.0.0"></script>
+  <script src="js/voice.js?v=4.0.0"></script>
+  <script src="js/pdf.js?v=4.0.0"></script>
+  <script src="js/whatsapp.js?v=4.0.0"></script>
 </body>
 </html>
