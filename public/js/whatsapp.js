@@ -60,22 +60,21 @@ window.sendWhatsAppBill = async function (customerName, customerPhone, pdfBlob, 
       }
 
       // 4. Construct professional formatted WhatsApp message
-      let message = `🧾 *Ram Provision Store - Invoice*\n`;
-      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `👤 *Customer:* ${displayName}\n`;
-      message += `📅 *Date:* ${today}\n`;
-      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Items Purchased:*\n`;
-      message += `${itemsListText || '• Purchase Items'}\n`;
-      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      if (typeof grandTotal === 'number') {
-        message += `💰 *Grand Total: ₹${grandTotal.toFixed(2)}*\n`;
-      } else {
-        message += `💰 *Grand Total: ${grandTotal}*\n`;
+      const shopName = document.getElementById('shop-name-header')?.textContent?.trim() || 'Ram Provision Store';
+      
+      let message = `🧾 *${shopName} - Invoice*\n\n`;
+      message += `Hello *${displayName}*,\n`;
+      message += `Thank you for your purchase at ${shopName}!\n`;
+      message += `Your invoice has been generated.\n\n`;
+
+      if (itemsListText) {
+        message += `*Bill Details:*\n`;
+        message += `${itemsListText}\n\n`;
+        const totalStr = (typeof grandTotal === 'number') ? `₹${grandTotal.toFixed(2)}` : `${grandTotal}`;
+        message += `💰 *Grand Total:* *${totalStr}*\n\n`;
       }
-      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `🙏 *Thank you for your business!*\n`;
-      message += `_Generated via Smart Vyapar POS_`;
+
+      message += `_Powered by Smart Vyapar_`;
 
       const encodedMessage = encodeURIComponent(message);
 
