@@ -228,9 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 3. WhatsApp Delivery (Phase 6)
       if (typeof window.sendWhatsAppBill === 'function') {
-         // Keep spinner active while sending
-         btnGenerateBill.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending WhatsApp...';
-         await window.sendWhatsAppBill(customerName, customerPhone, pdfBlob);
+         // Keep spinner active while redirecting
+         btnGenerateBill.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Opening WhatsApp...';
+         await window.sendWhatsAppBill(customerName, customerPhone, pdfBlob, invoiceData);
       } else {
          console.warn("sendWhatsAppBill is not defined. Ensure whatsapp.js is loaded.");
       }

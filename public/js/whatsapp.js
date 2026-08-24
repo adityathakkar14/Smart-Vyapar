@@ -1,92 +1,113 @@
 /**
- * WhatsApp Delivery Service
- * Supports Twilio WhatsApp API with ContentSid Template and Direct WhatsApp Fallback.
+ * Smart Vyapar — WhatsApp Direct Delivery Service (Free WhatsApp Web / App API)
+ * Directly redirects to WhatsApp pre-filled with the itemized invoice bill.
  * 
  * @param {string} customerName - The name of the customer
- * @param {string} customerPhone - The phone number to send to
- * @param {Blob} pdfBlob - The PDF blob of the invoice
- * @returns {Promise<boolean>} - True if sent successfully
+ * @param {string} customerPhone - The phone number of the customer
+ * @param {Blob} [pdfBlob] - The PDF blob of the invoice (optional)
+ * @param {Object} [invoiceData] - Structured invoice data containing items and totals
+ * @returns {Promise<boolean>} - True if redirected successfully
  */
-window.sendWhatsAppBill = async function (customerName, customerPhone, pdfBlob) {
-  return new Promise(async (resolve) => {
+window.sendWhatsAppBill = async function (customerName, customerPhone, pdfBlob, invoiceData) {
+  return new Promise((resolve) => {
     try {
-      console.log(`[WHATSAPP API] Initiating send to ${customerPhone}`);
+      const displayName = (customerName || '').trim() || 'Valued Customer';
+      const rawPhone = (customerPhone || '').trim();
 
-      if (!customerPhone) {
-        console.warn("[WHATSAPP API] No phone number provided. Skipping delivery.");
-        return resolve(false);
-      }
-
-      // 1. Clean and format phone number (defaults to India +91)
-      let phoneClean = customerPhone.replace(/\D/g, '');
+      // 1. Clean and format phone number (defaults to India +91 for 10-digit numbers)
+      let phoneClean = rawPhone.replace(/\D/g, '');
       if (phoneClean.length === 10) {
         phoneClean = '91' + phoneClean;
+      } else if (phoneClean.length > 10 && phoneClean.startsWith('0')) {
+        phoneClean = '91' + phoneClean.replace(/^0+/, '');
       }
-      const formattedPhone = `whatsapp:+${phoneClean}`;
-      const displayName = customerName || 'Customer';
 
-      // 2. Twilio Credentials & Template Configuration
-      const TWILIO_ACCOUNT_SID = 'AC8b3654c4891233dc6747a0bd795f1b98';
-      const TWILIO_AUTH_TOKEN = '5d4a4fe7f9ade5693349b3f51a90bd0d';
-      const TWILIO_FROM_NUMBER = 'whatsapp:+17372212163';
-      const TWILIO_CONTENT_SID = 'HXfe5ab5f00277942d4d4200328b4d403c';
+      // 2. Format Date
+      const today = invoiceData?.date || new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
 
-      // Twilio Basic Auth
-      const authHeader = 'Basic ' + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+      // 3. Build itemized bill lines
+      let itemsListText = '';
+      let grandTotal = 0;
 
-      // Customized Bill Message (for direct WhatsApp or fallback)
-      const billSummary = `🧾 *Ram Provision Store - Invoice*\n\nHello *${displayName}*,\nThank you for your purchase at Ram Provision Store!\nYour invoice has been generated.\n\n_Powered by Smart Vyapar_`;
-
-      // Twilio form-urlencoded payload with ContentSid
-      const urlEncodedData = new URLSearchParams();
-      urlEncodedData.append('To', formattedPhone);
-      urlEncodedData.append('From', TWILIO_FROM_NUMBER);
-      urlEncodedData.append('ContentSid', TWILIO_CONTENT_SID);
-      urlEncodedData.append('ContentVariables', JSON.stringify({
-        "1": displayName,
-        "2": "Ram Provision Store"
-      }));
-
-      try {
-        const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: urlEncodedData
+      if (invoiceData?.items && Array.isArray(invoiceData.items) && invoiceData.items.length > 0) {
+        grandTotal = invoiceData.totalAmount || invoiceData.items.reduce((s, i) => s + (i.total || 0), 0);
+        itemsListText = invoiceData.items.map((item, idx) => {
+          const itemTotal = (item.total != null) ? Number(item.total).toFixed(2) : (item.qty * item.price).toFixed(2);
+          return `${idx + 1}. *${item.name}* (${item.qty} × ₹${Number(item.price).toFixed(2)}) = ₹${itemTotal}`;
+        }).join('\n');
+      } else {
+        // Fallback: Read items from current table if not passed
+        const tableRows = document.querySelectorAll('#items-tbody tr');
+        const items = [];
+        tableRows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 3) {
+            const name = cells[0].textContent.trim();
+            const qtyPrice = cells[1].textContent.trim();
+            const total = cells[2].textContent.trim();
+            if (name && !name.includes('No items')) {
+              items.push(`• *${name}* (${qtyPrice}) = ${total}`);
+            }
+          }
         });
-
-        const result = await response.json();
-
-        if (response.ok) {
-          console.log(`[TWILIO API] Message delivered successfully!`, result);
-          window.showToast?.(`✅ Bill sent to ${displayName} on WhatsApp (+${phoneClean})`);
-          return resolve(true);
-        } else {
-          console.warn("[TWILIO API] Twilio sandbox returned error:", result.message || result);
-          // Fall through to Direct WhatsApp Link
-        }
-      } catch (twilioErr) {
-        console.warn("[TWILIO API] Twilio fetch failed, using WhatsApp Direct fallback:", twilioErr);
+        const grandTotalEl = document.getElementById('grand-total');
+        grandTotal = grandTotalEl ? grandTotalEl.textContent.trim() : '₹0.00';
+        itemsListText = items.join('\n');
       }
 
-      // 3. Fallback: Direct WhatsApp (wa.me)
-      // Opens WhatsApp app/web pre-filled with customer bill message
-      const directUrl = `https://wa.me/${phoneClean}?text=${encodeURIComponent(billSummary)}`;
-      console.log(`[WHATSAPP API] Opening WhatsApp direct link: ${directUrl}`);
-      
-      const opened = window.open(directUrl, '_blank');
-      if (!opened) {
-        window.location.href = directUrl;
+      // 4. Construct professional formatted WhatsApp message
+      let message = `🧾 *Ram Provision Store - Invoice*\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `👤 *Customer:* ${displayName}\n`;
+      message += `📅 *Date:* ${today}\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `*Items Purchased:*\n`;
+      message += `${itemsListText || '• Purchase Items'}\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+      if (typeof grandTotal === 'number') {
+        message += `💰 *Grand Total: ₹${grandTotal.toFixed(2)}*\n`;
+      } else {
+        message += `💰 *Grand Total: ${grandTotal}*\n`;
       }
-      
-      window.showToast?.(`📱 WhatsApp opened for ${displayName} (+${phoneClean})`);
+      message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `🙏 *Thank you for your business!*\n`;
+      message += `_Generated via Smart Vyapar POS_`;
+
+      const encodedMessage = encodeURIComponent(message);
+
+      // 5. Construct direct WhatsApp link (free API)
+      let waUrl = '';
+      if (phoneClean && phoneClean.length >= 10) {
+        waUrl = `https://wa.me/${phoneClean}?text=${encodedMessage}`;
+      } else {
+        // If no phone number entered, open WhatsApp contact chooser
+        waUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+      }
+
+      console.log(`[WhatsApp Free API] Redirecting to: ${waUrl}`);
+
+      // 6. Open WhatsApp Web / App
+      const win = window.open(waUrl, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        // Popup was blocked by browser, redirect current window
+        window.location.href = waUrl;
+      }
+
+      window.showToast?.(
+        phoneClean 
+          ? `📱 WhatsApp opened for ${displayName} (+${phoneClean})` 
+          : `📱 WhatsApp opened! Select contact to send.`
+      );
+
       resolve(true);
 
     } catch (error) {
-      console.error("[WHATSAPP API] Error:", error);
-      window.showToast?.('Could not send WhatsApp message', true);
+      console.error('[WhatsApp Free API] Error creating WhatsApp link:', error);
+      window.showToast?.('Could not open WhatsApp', true);
       resolve(false);
     }
   });
