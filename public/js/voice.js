@@ -8,10 +8,10 @@
  * 4. High-accuracy Indian Kirana / Retail NLP Engine:
  *    - Full Indic digit normalization (Gujarati ૦-૯ & Devanagari ०-९).
  *    - Number word mapping across Gujarati, Hindi, Hinglish/Gujlish, and English.
- *    - Phonetic transliteration & customer honorific/suffix stripping (bhai, ben, ji, ko, ne, to, for).
+ *    - Generalized customer name extraction & transliteration (all Indian names, with or without honorifics/suffixes).
  *    - 100+ standard grocery/FMCG dictionary mappings to clean English product names.
  *    - Multi-unit parsing (kg, gm, liter, ml, packet, piece, bottle, dozen) with decimal normalization.
- *    - Smart price and quantity disambiguation with exact token masking.
+ *    - Smart price and quantity disambiguation with exact token masking and Unicode safety.
  * 5. Automatic billing form fill with visual highlight & toast notifications.
  */
 
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (recognition) {
     recognition.onstart = () => {
       isListening = true;
-      btnMic.classList.add('listening');
+      btnMic?.classList.add('listening');
       const langText = langSelect?.options[langSelect.selectedIndex]?.text || 'Speech';
       setStatus(`🎤 Listening in ${langText}... Speak now`);
     };
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     webSpeechText = '';
     hasTranscript = false;
 
-    // Clear item inputs for fresh voice entry
+    // Clear item inputs for fresh voice entry (preserve customer name if not overridden)
     if (itemNameInput) itemNameInput.value = '';
     if (itemQtyInput) itemQtyInput.value = '';
     if (itemPriceInput) itemPriceInput.value = '';
@@ -227,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (autofilled) {
       let summary = [];
+      if (customerName) summary.push(`👤 ${customerName}`);
       if (itemName) summary.push(itemName);
       if (quantity != null) summary.push(`${quantity} qty`);
       if (price != null) summary.push(`₹${price}`);
@@ -245,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1800);
       }
     } else {
-      setStatus("❓ Couldn't extract product details. Please speak clearly (e.g. '2 kg rice 60 rupees').");
+      setStatus("❓ Couldn't extract product details. Please speak clearly (e.g. 'Ramesh 2 kg rice 60').");
     }
   }
 
@@ -399,20 +400,23 @@ document.addEventListener('DOMContentLoaded', () => {
     { match: ['બટાકા', 'બટાટા', 'bataka', 'batata', 'aloo', 'potato', 'alu', 'आलू', 'बटाटा'], display: 'Potato' },
     { match: ['ટામેટા', 'tameta', 'tomato', 'tamatar', 'tametaa', 'टमाटर'], display: 'Tomato' },
     { match: ['લસણ', 'lasan', 'lahsun', 'garlic', 'लहसुन'], display: 'Garlic' },
-    { match: ['આદુ', 'aadu', 'adrak', 'ginger', 'अदरक'], display: 'Ginger' }
+    { match: ['આદુ', 'aadu', 'adrak', 'ginger', 'अदरક'], display: 'Ginger' }
   ];
 
-  // 4. Indic Name Dictionary & Transliteration Helper
+  // 4. Comprehensive Indic Name Dictionary & Transliteration Helper
   const knownNames = {
-    // Gujarati script
+    // Gujarati Names
     'રમેશ': 'Ramesh', 'સુરેશ': 'Suresh', 'રાજેશ': 'Rajesh', 'મહેશ': 'Mahesh', 'ભાવેશ': 'Bhavesh', 'ભાવિન': 'Bhavin', 'જિગ્નેશ': 'Jignesh',
     'નિલેશ': 'Nilesh', 'પરેશ': 'Paresh', 'હિતેશ': 'Hitesh', 'મુકેશ': 'Mukesh', 'કમલેશ': 'Kamlesh', 'દિનેશ': 'Dinesh', 'નરેશ': 'Naresh',
     'હરેશ': 'Haresh', 'ભરત': 'Bharat', 'અમિત': 'Amit', 'સુમિત': 'Sumit', 'રોહિત': 'Rohit', 'મોહિત': 'Mohit', 'સંજય': 'Sanjay',
-    'વિજય': 'Vijay', 'અજય': 'Ajay', 'દિલીપ': 'Dilip', 'મનોજ': 'Manoj', 'દીપક': 'Deepak', 'પ્રકાશ': 'Prakash', 'આનંદ': 'Anand',
+    'વિજય': 'Vijay', 'અજય': 'Ajay', 'દિલીપ': 'Dilip', 'મનોજ': 'Manoj', 'દીપક': 'Deepak', 'દિપક': 'Deepak', 'પ્રકાશ': 'Prakash', 'આનંદ': 'Anand',
     'અશોક': 'Ashok', 'વિકાસ': 'Vikas', 'રાહુલ': 'Rahul', 'સચિન': 'Sachin', 'હાર્દિક': 'Hardik', 'ચેતન': 'Chetan', 'ગૌરવ': 'Gaurav',
     'ચિરાગ': 'Chirag', 'તુષાર': 'Tushar', 'આલોક': 'Alok', 'પ્રતિક': 'Pratik', 'આદિત્ય': 'Aditya', 'રોહન': 'Rohan', 'જય': 'Jay',
     'યશ': 'Yash', 'પાર્થ': 'Parth', 'હર્ષ': 'Harsh', 'ધ્રુવ': 'Dhruv', 'કૃણાલ': 'Krunal', 'મેહુલ': 'Mehul', 'સાગર': 'Sagar',
-    'વિશાલ': 'Vishal', 'નીરવ': 'Nirav', 'કેતન': 'Ketan', 'સંદીપ': 'Sandeep', 'સુનીલ': 'Sunil', 'અનિલ': 'Anil', 'પંકજ': 'Pankaj',
+    'વિશાલ': 'Vishal', 'નીરવ': 'Nirav', 'કેતન': 'Ketan', 'સંદીપ': 'Sandeep', 'સુનીલ': 'Sunil', 'સુનિલ': 'Sunil', 'અનિલ': 'Anil', 'પંકજ': 'Pankaj',
+    'કિશન': 'Kishan', 'કશન': 'Kishan', 'અંકિત': 'Ankit', 'મનીષ': 'Manish', 'રાકેશ': 'Rakesh', 'નયન': 'Nayan', 'વિવેક': 'Vivek',
+    'ગૌતમ': 'Gautam', 'પ્રણવ': 'Pranav', 'ચિંતન': 'Chintan', 'મયૂર': 'Mayur', 'મયુર': 'Mayur', 'રોનક': 'Ronak', 'મિતેશ': 'Mitesh',
+    'જયેશ': 'Jayesh', 'હિરેન': 'Hiren', 'અલ્કેશ': 'Alkesh', 'દેવાંગ': 'Devang', 'કૌશિક': 'Kaushik', 'ધર્મેશ': 'Dharmesh',
     'પૂજા': 'Pooja', 'પુજા': 'Pooja', 'પ્રિયા': 'Priya', 'નેહા': 'Neha', 'રિયા': 'Riya', 'અંજલિ': 'Anjali', 'ગીતા': 'Geeta',
     'સીતા': 'Sita', 'રેખા': 'Rekha', 'શ્વેતા': 'Shweta', 'નિશા': 'Nisha', 'દિવ્યા': 'Divya', 'સ્નેહા': 'Sneha', 'પાયલ': 'Payal',
     'કોમલ': 'Komal', 'કાજલ': 'Kajal', 'સુમન': 'Suman', 'કવિતા': 'Kavita', 'અનીતા': 'Anita', 'અનિતા': 'Anita', 'સુનીતા': 'Sunita',
@@ -422,26 +426,32 @@ document.addEventListener('DOMContentLoaded', () => {
     'પટેલ': 'Patel', 'શાહ': 'Shah', 'મેહતા': 'Mehta', 'ઠક્કર': 'Thakkar', 'જોશી': 'Joshi', 'શર્મા': 'Sharma', 'ગુપ્તા': 'Gupta',
     'સિંહ': 'Singh', 'વર્મા': 'Verma', 'દવે': 'Dave', 'ત્રિવેદી': 'Trivedi', 'પંડ્યા': 'Pandya', 'મોદી': 'Modi', 'સોની': 'Soni',
 
-    // Devanagari script
-    'रमेश': 'Ramesh', 'सुरेश': 'Suresh', 'राजेश': 'Rajesh', 'महेश': 'Mahesh', 'भावेश': 'Bhavesh', 'जिग्नेश': 'Jignesh',
-    'नीलेश': 'Nilesh', 'परेश': 'Paresh', 'हितेश': 'Hitesh', 'मुकेश': 'Mukesh', 'कमलेश': 'Kamlesh', 'दिनेश': 'Dinesh',
-    'नरेश': 'Naresh', 'अमित': 'Amit', 'सुमित': 'Sumit', 'रोहित': 'Rohit', 'संजय': 'Sanjay', 'विजय': 'Vijay', 'अजय': 'Ajay',
-    'दिलीप': 'Dilip', 'मनोज': 'Manoj', 'दीपक': 'Deepak', 'प्रकाश': 'Prakash', 'आनंद': 'Anand', 'अशोक': 'Ashok', 'विकास': 'Vikas',
-    'राहुल': 'Rahul', 'सचिन': 'Sachin', 'गौरव': 'Gaurav', 'आदित्य': 'Aditya', 'रोहन': 'Rohan', 'पूजा': 'Pooja', 'प्रिया': 'Priya',
-    'नेहा': 'Neha', 'रिया': 'Riya', 'अंजलि': 'Anjali', 'गीता': 'Geeta', 'सीता': 'Sita', 'रेखा': 'Rekha', 'श्वेता': 'Shweta',
-    'निशा': 'Nisha', 'दिव्या': 'Divya', 'स्नेहा': 'Sneha', 'पायल': 'Payal', 'कोमल': 'Komal', 'काजल': 'Kajal', 'कविता': 'Kavita',
-    'पटेल': 'Patel', 'शाह': 'Shah', 'मेहता': 'Mehta', 'शर्मा': 'Sharma', 'गुप्ता': 'Gupta', 'सिंह': 'Singh', 'वर्मा': 'Verma', 'यादव': 'Yadav',
+    // Devanagari Names
+    'रमेश': 'Ramesh', 'सुरेश': 'Suresh', 'राजेश': 'Rajesh', 'महेश': 'Mahesh', 'भावेश': 'Bhavesh', 'अमित': 'Amit', 'रोहित': 'Rohit',
+    'संजय': 'Sanjay', 'विजय': 'Vijay', 'दीपक': 'Deepak', 'दिपक': 'Deepak', 'अजय': 'Ajay', 'राहुल': 'Rahul', 'सचिन': 'Sachin',
+    'किशन': 'Kishan', 'अंकित': 'Ankit', 'मनीष': 'Manish', 'राकेश': 'Rakesh', 'सुनील': 'Sunil', 'अनिल': 'Anil', 'पंकज': 'Pankaj',
+    'पूजा': 'Pooja', 'प्रिया': 'Priya', 'पटेल': 'Patel', 'शाह': 'Shah', 'शर्मा': 'Sharma', 'गुप्ता': 'Gupta', 'सिंह': 'Singh',
 
-    // Romanized common names
+    // Romanized Names
     'ramesh': 'Ramesh', 'suresh': 'Suresh', 'rajesh': 'Rajesh', 'mahesh': 'Mahesh', 'bhavesh': 'Bhavesh', 'bhavin': 'Bhavin',
     'jignesh': 'Jignesh', 'nilesh': 'Nilesh', 'paresh': 'Paresh', 'hitesh': 'Hitesh', 'mukesh': 'Mukesh', 'dinesh': 'Dinesh',
-    'amit': 'Amit', 'rohit': 'Rohit', 'sanjay': 'Sanjay', 'vijay': 'Vijay', 'dilip': 'Dilip', 'deepak': 'Deepak',
-    'pooja': 'Pooja', 'priya': 'Priya', 'neha': 'Neha', 'patel': 'Patel', 'shah': 'Shah', 'mehta': 'Mehta', 'thakkar': 'Thakkar', 'kumar': 'Kumar'
+    'amit': 'Amit', 'rohit': 'Rohit', 'sanjay': 'Sanjay', 'vijay': 'Vijay', 'dilip': 'Dilip', 'deepak': 'Deepak', 'dipak': 'Deepak',
+    'ajay': 'Ajay', 'hardik': 'Hardik', 'kishan': 'Kishan', 'ankit': 'Ankit', 'manish': 'Manish', 'rakesh': 'Rakesh',
+    'sunil': 'Sunil', 'anil': 'Anil', 'pankaj': 'Pankaj', 'aditya': 'Aditya', 'rahul': 'Rahul', 'sachin': 'Sachin',
+    'nayan': 'Nayan', 'vivek': 'Vivek', 'gautam': 'Gautam', 'pranav': 'Pranav', 'chintan': 'Chintan', 'mayur': 'Mayur',
+    'ronak': 'Ronak', 'mitesh': 'Mitesh', 'jayesh': 'Jayesh', 'hiren': 'Hiren', 'alkesh': 'Alkesh', 'devang': 'Devang',
+    'pooja': 'Pooja', 'puja': 'Pooja', 'priya': 'Priya', 'neha': 'Neha', 'anjali': 'Anjali', 'geeta': 'Geeta', 'sejal': 'Sejal',
+    'patel': 'Patel', 'shah': 'Shah', 'mehta': 'Mehta', 'thakkar': 'Thakkar', 'joshi': 'Joshi', 'sharma': 'Sharma', 'gupta': 'Gupta', 'kumar': 'Kumar'
   };
 
   function transliterateIndicToEnglish(text) {
     if (!text) return '';
     const trimmed = text.trim();
+
+    // Multi-word check (e.g. "Bhavin Patel" or "ભાવિન પટેલ")
+    if (trimmed.includes(' ')) {
+      return trimmed.split(/\s+/).map(w => transliterateIndicToEnglish(w)).join(' ');
+    }
 
     if (knownNames[trimmed.toLowerCase()]) return knownNames[trimmed.toLowerCase()];
     if (knownNames[trimmed]) return knownNames[trimmed];
@@ -534,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let rawMatchedPriceNum = null;
     let custEndIdx         = -1;
 
-    // ── STEP 3: Extract Customer Name ─────────────────────────────────────────
+    // ── STEP 3: Comprehensive Customer Name Extraction ─────────────────────────
     const customerSuffixes = [
       'ભાઈને', 'ભાઈ', 'બેનને', 'બેન', 'જીને', 'જી',
       'भाई को', 'भाईको', 'भाईने', 'भाई', 'बहन को', 'बहन', 'दीदी', 'जी को', 'जी',
@@ -542,11 +552,18 @@ document.addEventListener('DOMContentLoaded', () => {
       'bhaiya', 'seth', 'sethji', 'kaka', 'mama', 'chacha'
     ];
 
+    const commonUnits = new Set([
+      'kg', 'kilo', 'kgs', 'kilogram', 'gram', 'gm', 'gms', 'g', 'liter', 'litre', 'ltr', 'l', 'ml', 'milli',
+      'packet', 'pkt', 'pkts', 'packets', 'nag', 'piece', 'pieces', 'pcs', 'pc', 'bottle', 'bottles', 'box', 'boxes',
+      'bag', 'bags', 'dozen', 'dzn', 'કિલો', 'ગ્રામ', 'લીટર', 'લિટર', 'નંગ', 'પેકેટ', 'બોટલ', 'ડઝન', 'દર્જન', 'पुડા', 'કટો',
+      'किलो', 'ग्राम', 'लीटर', 'पैकेट', 'नग', 'दर्जन', 'बोतल'
+    ]);
+
+    // Method A: Attached or standalone suffix pattern (e.g. "Ramesh bhai ne", "દીપકભાઈને", "Bhavinbhai")
     for (let i = 0; i < words.length; i++) {
       const w = words[i].toLowerCase();
       const wClean = w.replace(/^[^\w\u0A80-\u0AFF\u0900-\u097F]+|[^\w\u0A80-\u0AFF\u0900-\u097F]+$/g, '');
 
-      // Case A: Suffix attached directly to name (e.g. "રમેશભાઈ" or "રમેશભાઈને" or "Rameshbhai")
       if (wClean.endsWith('ભાઈ') || wClean.endsWith('ભાઈને') || wClean.endsWith('બેન') || wClean.endsWith('બેનને') ||
           wClean.endsWith('bhai') || wClean.endsWith('bhaine') || wClean.endsWith('ben') || wClean.endsWith('benne')) {
         let baseName = wClean.replace(/(ભાઈને|ભાઈ|બેનને|બેન|bhaine|bhai|benne|ben)$/i, '');
@@ -559,7 +576,6 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       }
 
-      // Case B: Suffix is a separate word (e.g. "Ramesh bhai ne")
       if (customerSuffixes.includes(wClean) && i > 0) {
         let nameTokens = words.slice(0, i);
         nameTokens = nameTokens.filter(t => !['to', 'for', 'customer', 'grahak', 'ગ્રાહક', 'ग्राहक'].includes(t.toLowerCase()));
@@ -573,7 +589,6 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       }
 
-      // Case C: Standalone 'ne' / 'ko' after 1-3 tokens
       if (['ને', 'કો', 'को', 'ne', 'ko'].includes(wClean) && i > 0 && i <= 3) {
         let nameTokens = words.slice(0, i);
         nameTokens = nameTokens.filter(t => !['to', 'for', 'customer', 'grahak'].includes(t.toLowerCase()));
@@ -585,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Case D: Prefix patterns: "To Ramesh", "For Suresh", "Customer Amit"
+    // Method B: Prefix patterns: "To Ramesh", "For Suresh", "Customer Amit"
     if (!extractedCustomer) {
       const prefixMatch = norm.match(/^(?:to|for|customer|grahak|ગ્રાહક|ग्राहक)\s+([A-Za-z\u0A80-\u0AFF\u0900-\u097F]+(?:\s+[A-Za-z\u0A80-\u0AFF\u0900-\u097F]+)?)/i);
       if (prefixMatch) {
@@ -594,17 +609,40 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Case E: Known name at the beginning before numbers/items (e.g. "Rajesh kumar 500 gm ghee 350 rs")
+    // Method C: Leading Customer Name without suffix (e.g. "Deepak 2 kg rice 60", "Ajay 5 packet maggi", "Bhavin Patel 2 kg sugar", "દીપક ૨ કિલો ખાંડ ૪૦")
     if (!extractedCustomer && words.length >= 2) {
-      const firstWord = words[0].toLowerCase().replace(/^[^\w\u0A80-\u0AFF\u0900-\u097F]+|[^\w\u0A80-\u0AFF\u0900-\u097F]+$/g, '');
-      const secondWord = words[1].toLowerCase().replace(/^[^\w\u0A80-\u0AFF\u0900-\u097F]+|[^\w\u0A80-\u0AFF\u0900-\u097F]+$/g, '');
+      const candidateNameWords = [];
+      
+      for (let i = 0; i < Math.min(words.length, 3); i++) {
+        const token = words[i].toLowerCase().replace(/^[^\w\u0A80-\u0AFF\u0900-\u097F]+|[^\w\u0A80-\u0AFF\u0900-\u097F]+$/g, '');
+        if (!token) break;
 
-      if (knownNames[firstWord] && (knownNames[secondWord] || ['kumar', 'bhai', 'ben', 'patel', 'shah', 'mehta', 'sharma', 'gupta', 'singh'].includes(secondWord))) {
-        extractedCustomer = transliterateIndicToEnglish(`${words[0]} ${words[1]}`);
-        custEndIdx = 1;
-      } else if (knownNames[firstWord] && !/^\d+$/.test(secondWord) && !['kg', 'gm', 'kilo', 'litre', 'liter', 'packet', 'sabun', 'rice', 'sugar', 'tel', 'ghee', 'oil'].includes(secondWord)) {
-        extractedCustomer = transliterateIndicToEnglish(words[0]);
-        custEndIdx = 0;
+        // Stop if token is a digit or number word
+        if (/^\d+(\.\d+)?$/.test(token)) break;
+
+        // Stop if token is a unit (e.g. "kg", "litre")
+        if (commonUnits.has(token)) break;
+
+        // Stop if token is a grocery item keyword (e.g. "sugar", "rice", "ખાંડ", "ચોખા")
+        let isItem = false;
+        for (const entry of groceryDictionary) {
+          if (entry.match.some(m => m.toLowerCase() === token)) {
+            isItem = true;
+            break;
+          }
+        }
+        if (isItem) break;
+
+        // Stop if token is a common filler / action word
+        if (['to', 'for', 'add', 'item', 'bill', 'customer', 'grahak', 'please'].includes(token)) break;
+
+        // This token is part of customer name
+        candidateNameWords.push(words[i]);
+      }
+
+      if (candidateNameWords.length > 0 && candidateNameWords.length < words.length) {
+        extractedCustomer = transliterateIndicToEnglish(candidateNameWords.join(' '));
+        custEndIdx = candidateNameWords.length - 1;
       }
     }
 
@@ -615,6 +653,10 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const cp of custParts) {
         const reg = new RegExp(`\\b${escapeRegExp(cp)}\\b`, 'gi');
         textForItems = textForItems.replace(reg, '');
+      }
+      if (custEndIdx >= 0) {
+        const remainingWords = words.slice(custEndIdx + 1);
+        textForItems = remainingWords.join(' ').toLowerCase();
       }
     }
 
@@ -628,14 +670,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (extractedItem) break;
     }
 
-    // ── STEP 5: Extract Quantity & Units ──────────────────────────────────────
-    const qtyUnitRegex = /(\d+(?:\.\d+)?)\s*(kilo|kg|kgs|kilogram|gram|gm|gms|g|liter|litre|ltr|l|ml|milli|packet|pkt|pkts|packets|nag|piece|pieces|pcs|pc|bottle|bottles|box|boxes|bag|bags|dozen|dzn|કિલો|ગ્રામ|લીટર|નંગ|પેકેટ|બોટલ|ડઝન|દર્જન|પુડા|કટો|किलो|ग्राम|लीटर|पैकेट|नग|दर्जन|बोतल)\b/i;
+    // ── STEP 5: Extract Quantity & Units (Unicode-safe boundary) ───────────────
+    const qtyUnitRegex = /(\d+(?:\.\d+)?)\s*(kilo|kg|kgs|kilogram|gram|gm|gms|g|liter|litre|ltr|l|ml|milli|packet|pkt|pkts|packets|nag|piece|pieces|pcs|pc|bottle|bottles|box|boxes|bag|bags|dozen|dzn|કિલો|ગ્રામ|લીટર|લિટર|નંગ|પેકેટ|બોટલ|ડઝન|દર્જન|પુડા|કટો|किलो|ग्राम|लीटर|पैकेट|नग|दर्जन|बोतल)(?=$|\s|[.,!?;:()\/\\-]+|[\u0A80-\u0AFF\u0900-\u097F])/i;
     const qtyMatch = lower.match(qtyUnitRegex);
 
     if (qtyMatch) {
       rawMatchedQtyNum = qtyMatch[1];
       const numVal = parseFloat(qtyMatch[1]);
-      const unit = qtyMatch[2].toLowerCase();
+      const unit = qtyMatch[2].toLowerCase().trim();
 
       if (['gram', 'gm', 'gms', 'g', 'ગ્રામ', 'ग्राम'].includes(unit)) {
         if (numVal === 500) extractedQty = 0.5;
@@ -656,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── STEP 6: Extract Price ────────────────────────────────────────────────
-    const priceRegex1 = /(\d+(?:\.\d+)?)\s*(?:rupiya|rupiye|rupees|rupee|rs|inr|₹|રૂપિયા|રૂ|ભાવ|ભાવે|દર|रुपये|रुपए|भाव|भाव से|दर|rate|per)\b/i;
+    const priceRegex1 = /(\d+(?:\.\d+)?)\s*(?:rupiya|rupiye|rupees|rupee|rs|inr|₹|રૂપિયા|રૂ|ભાવ|ભાવે|દર|रुपये|रुपए|भाव|भाव से|દર|rate|per)(?=$|\s|[.,!?;:()\/\\-]+|[\u0A80-\u0AFF\u0900-\u097F])/i;
     const priceRegex2 = /(?:rupiya|rupiye|rupees|rupee|rs|inr|₹|રૂપિયા|રૂ|रुपये|रुपए|ભાવ|ભાવે|દર|rate|at|@)\s*(\d+(?:\.\d+)?)/i;
 
     const priceMatch1 = lower.match(priceRegex1);
@@ -708,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'kilo', 'kg', 'kgs', 'gram', 'gm', 'gms', 'liter', 'litre', 'ltr', 'ml', 'packet', 'pkt', 'piece', 'pcs', 'nag', 'bottle', 'dozen', 'dzn',
         'rupiya', 'rupiye', 'rupees', 'rupee', 'rs', 'inr', 'rate', 'bhav', 'bhave', 'add', 'item', 'bill',
         'ને', 'કો', 'મે', 'ભાઈ', 'ભાઈને', 'બેન', 'બેનને', 'જી', 'જીને', 'ગ્રાહક',
-        'કિલો', 'ગ્રામ', 'લીટર', 'નંગ', 'પેકેટ', 'બોટલ', 'ડઝન', 'રૂપિયા', 'રૂ', 'ભાવ', 'ભાવે', 'દર',
+        'કિલો', 'ગ્રામ', 'લીટર', 'લિટર', 'નંગ', 'પેકેટ', 'બોટલ', 'ડઝન', 'દર્જન', 'પુડા', 'કટો', 'રૂપિયા', 'રૂ', 'ભાવ', 'ભાવે', 'દર',
         'को', 'ने', 'में', 'से', 'का', 'की', 'के', 'भाई', 'बहन', 'जी', 'ग्राहक',
         'किलो', 'ग्राम', 'लीटर', 'नग', 'पैकेट', 'बोतल', 'दर्जन', 'रुपये', 'रुपए', 'भाव', 'दर'
       ]);
